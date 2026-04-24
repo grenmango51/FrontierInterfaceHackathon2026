@@ -1,0 +1,10 @@
+{
+  "ftp_user": "Frontier Interfaces - Alpha",
+  "ftp_password": "password1",
+  "ftp_port": 21,
+  "output_dir": "D:/Hoai Anh/Aalto/Hobbies/FrontierInterface/emotibit_data",
+  "data_parser_path": "C:/Program Files/EmotiBit/EmotiBit DataParser/EmotiBitDataParser.exe",
+  "scan_interval_seconds": 30,
+  "known_emotibit_ip": null,
+  "subnet_scan_range": "192.168.1.0/24"
+}
