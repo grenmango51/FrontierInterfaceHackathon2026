@@ -33,6 +33,18 @@ def main():
                 if new_files:
                     parsed = parse_files(new_files)
                     print(f"Transferred {len(new_files)} file(s), parsed {len(parsed)}.\n")
+                    
+                    # --- EmoMirror Hook ---
+                    if parsed:
+                        try:
+                            from emomirror.hook import on_new_data
+                            print("Triggering EmoMirror pipeline...")
+                            on_new_data(today_dir, parsed)
+                        except ImportError:
+                            print("EmoMirror module not found. Skipping hook.")
+                        except Exception as e:
+                            print(f"EmoMirror hook failed: {e}")
+                    # ----------------------
                 else:
                     print("No new files this cycle.\n")
             else:

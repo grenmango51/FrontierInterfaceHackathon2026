@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmoMirror UI Mockup</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #000000; /* Pure black for two-way mirror */
+            color: #ffffff;
+            font-family: 'Outfit', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* The Canvas Avatar */
+        #avatarCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.8;
+            transition: opacity 2s ease;
+        }
+
+        /* Floating UI Overlay */
+        #ui-layer {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .fade-in {
+            animation: fadeIn 1.5s forwards;
+        }
+
+        .fade-out {
+            animation: fadeOut 1s forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+
+        /* Typography */
+        h1 {
+            font-weight: 200;
+            font-size: 3.5rem;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+
+        h2 {
+            font-weight: 400;
+            font-size: 1.5rem;
+            color: #aaaaaa;
+            margin-bottom: 2rem;
+        }
+
+        .insight-text {
+            font-size: 1.2rem;
+            font-weight: 200;
+            color: #d4d4d4;
+            max-width: 600px;
+            line-height: 1.6;
+            margin-bottom: 3rem;
+            border-left: 2px solid rgba(255,255,255,0.2);
+            padding-left: 1.5rem;
+            text-align: left;
+        }
+
+        /* Modern Glassmorphic Buttons */
+        .btn-group {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            padding: 1rem 2rem;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 200;
+            border-radius: 50px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.4s ease;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 15px rgba(255,255,255,0.2);
+        }
+
+        /* Biofeedback UI */
+        .progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        /* Timeline Styles */
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+            max-width: 600px;
+            width: 100%;
+            text-align: left;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 1rem;
+            opacity: 0;
+            transform: translateX(-20px);
+            animation: slideIn 0.8s forwards;
+        }
+
+        .timeline-item:nth-child(1) { animation-delay: 0.5s; }
+        .timeline-item:nth-child(2) { animation-delay: 1.5s; }
+        .timeline-item:nth-child(3) { animation-delay: 2.5s; }
+
+        @keyframes slideIn {
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .time-label {
+            font-weight: 600;
+            color: #888;
+            min-width: 100px;
+        }
+
+        .timeline-content {
+            border-left: 2px solid rgba(255,255,255,0.2);
+            padding-left: 1.5rem;
+        }
+
+        .state-badge {
+            display: inline-block;
+            background: rgba(255, 100, 50, 0.2);
+            color: #ff8c66;
+            padding: 0.2rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(255, 100, 50, 0.4);
+        }
+
+        .metric {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 0.3rem;
+        }
+
+        .actions {
+            opacity: 0;
+            animation: fadeIn 1s forwards;
+            animation-delay: 4s; /* Show buttons after timeline */
+        }
+        
+        #instruction-text {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2rem;
+            font-weight: 200;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.5s ease;
+            text-align: center;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <!-- Particle System Canvas -->
+    <canvas id="avatarCanvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer">
+        
+        <!-- Scene 1: Awakening / Day Playback -->
+        <div id="scene-review" class="fade-in">
+            <h1>Welcome back.</h1>
+            <h2>Here is a reflection of your body today.</h2>
+            
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="time-label">Morning</div>
+                    <div class="timeline-content">
+                        <div class="state-badge">OVERSTIMULATED</div>
+                        <div class="insight-text-small">High stimulation detected in your biosignals.</div>
+                        <div class="metric">HR: 98.7 BPM | EDA: 174.81 uS</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="time-label">Afternoon</div>
+                    <div class="timeline-content">
+                        <div class="state-badge">OVERSTIMULATED</div>
+                        <div class="insight-text-small">High cognitive load and stress response active.</div>
+                        <div class="metric">HR: 101.6 BPM | EDA: 2387.22 uS</div>
+                    </div>
+                </div>
+                <div class="timeline-item">
+                    <div class="time-label">Evening</div>
+                    <div class="timeline-content">
+                        <div class="state-badge">OVERSTIMULATED</div>
+                        <div class="insight-text-small">Tension remains high despite the day ending.</div>
+                        <div class="metric">HR: 95.4 BPM | EDA: 408.71 uS</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-group actions">
+                <button onclick="startBiofeedback()">Start Biofeedback Challenge</button>
+                <button onclick="dismiss()">Not now</button>
+            </div>
+        </div>
+
+        <!-- Scene 2: Biofeedback Challenge -->
+        <div id="scene-biofeedback" class="hidden">
+            <div class="progress-ring"></div>
+            <div id="instruction-text">Breathe deeply...</div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- WebGL / Canvas Human Silhouette Avatar ---
+        const canvas = document.getElementById('avatarCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        let state = 'STORM'; // STORM (Overstimulated), CALMING, BLOOM
+        let progress = 0.0;
+        let animationFrameId;
+        let time = 0;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Draw a minimalist human silhouette
+        function drawSilhouette(ctx, centerX, centerY, scale, droopFactor) {
+            ctx.beginPath();
+            
+            // Head
+            ctx.arc(centerX, centerY - 150 * scale + (droopFactor * 30), 40 * scale, 0, Math.PI * 2);
+            
+            // Neck
+            ctx.moveTo(centerX - 15 * scale, centerY - 120 * scale + (droopFactor * 25));
+            ctx.lineTo(centerX + 15 * scale, centerY - 120 * scale + (droopFactor * 25));
+            ctx.lineTo(centerX + 20 * scale, centerY - 90 * scale + (droopFactor * 20));
+            ctx.lineTo(centerX - 20 * scale, centerY - 90 * scale + (droopFactor * 20));
+            
+            // Shoulders & Torso (droop makes shoulders slump)
+            ctx.moveTo(centerX - 20 * scale, centerY - 90 * scale + (droopFactor * 20));
+            ctx.quadraticCurveTo(centerX - 80 * scale, centerY - 80 * scale + (droopFactor * 50), centerX - 90 * scale, centerY - 30 * scale); // Left shoulder
+            ctx.lineTo(centerX - 70 * scale, centerY + 150 * scale); // Left hip
+            ctx.lineTo(centerX + 70 * scale, centerY + 150 * scale); // Right hip
+            ctx.lineTo(centerX + 90 * scale, centerY - 30 * scale); // Right shoulder
+            ctx.quadraticCurveTo(centerX + 80 * scale, centerY - 80 * scale + (droopFactor * 50), centerX + 20 * scale, centerY - 90 * scale + (droopFactor * 20)); // Right neck
+            
+            // Arms
+            ctx.moveTo(centerX - 90 * scale, centerY - 30 * scale);
+            ctx.quadraticCurveTo(centerX - 110 * scale, centerY + 50 * scale, centerX - 100 * scale, centerY + 180 * scale); // Left arm
+            ctx.moveTo(centerX + 90 * scale, centerY - 30 * scale);
+            ctx.quadraticCurveTo(centerX + 110 * scale, centerY + 50 * scale, centerX + 100 * scale, centerY + 180 * scale); // Right arm
+
+            ctx.fill();
+        }
+
+        function animate() {
+            time += 0.05;
+            ctx.clearRect(0, 0, width, height);
+
+            let centerX = width / 2;
+            let centerY = height / 2 + 50;
+            let scale = Math.min(width, height) / 600;
+
+            // Determine visual properties based on state and progress
+            let color = '';
+            let auraBlur = 0;
+            let glitchIntensity = 0;
+            let droopFactor = 0;
+
+            if (state === 'STORM') {
+                // OVERSTIMULATED: Red/Orange, high glitch, intense pulsing aura, rigid posture
+                color = `rgba(255, 60, 20, 0.9)`;
+                auraBlur = 50 + Math.sin(time * 2) * 20;
+                glitchIntensity = 15;
+                droopFactor = 0; 
+            } else if (state === 'FATIGUED') {
+                // FATIGUED: Dull grey/blue, no aura, slumping posture
+                color = `rgba(100, 110, 130, 0.6)`;
+                auraBlur = 10;
+                glitchIntensity = 0;
+                droopFactor = 1.5; // Heavy slouch
+            } else if (state === 'CALMING') {
+                // BIOFEEDBACK PROGRESS: Transforms from Storm to Calm
+                let r = Math.floor(255 * (1 - progress));
+                let g = Math.floor(60 + 140 * progress);
+                let b = Math.floor(20 + 235 * progress);
+                
+                color = `rgba(${r}, ${g}, ${b}, ${0.9 - 0.2 * progress})`;
+                auraBlur = (50 * (1 - progress)) + (30 + Math.sin(time) * 10) * progress; // Breathes smoothly
+                glitchIntensity = 15 * (1 - progress); // Glitch fades away
+                droopFactor = 0;
+            }
+
+            // Draw Base Aura (Glow)
+            ctx.shadowColor = color;
+            ctx.shadowBlur = auraBlur;
+            ctx.fillStyle = color;
+
+            // Optional: Draw a secondary larger, fainter aura
+            ctx.beginPath();
+            ctx.arc(centerX, centerY - 20 * scale, 180 * scale, 0, Math.PI * 2);
+            ctx.fillStyle = color.replace(/[\d.]+\)$/g, '0.05)'); // Very transparent
+            ctx.fill();
+
+            // Draw Main Silhouette
+            ctx.fillStyle = color;
+            ctx.shadowBlur = auraBlur / 2;
+            drawSilhouette(ctx, centerX, centerY, scale, droopFactor);
+
+            // Glitch Effect (Horizontal Slicing)
+            if (glitchIntensity > 0 && Math.random() > 0.7) {
+                let sliceY = Math.random() * height;
+                let sliceHeight = Math.random() * 20 + 5;
+                let offsetX = (Math.random() - 0.5) * glitchIntensity * scale * 2;
+                
+                // Get image data for the slice
+                try {
+                    let sliceData = ctx.getImageData(0, sliceY, width, sliceHeight);
+                    // Clear original slice
+                    ctx.clearRect(0, sliceY, width, sliceHeight);
+                    // Draw offset slice
+                    ctx.putImageData(sliceData, offsetX, sliceY);
+                    
+                    // Add some digital noise lines
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.5})`;
+                    ctx.fillRect(0, sliceY + Math.random()*sliceHeight, width, 2);
+                } catch(e) {} // Ignore cross-origin canvas errors if any
+            }
+
+            // Reset shadow
+            ctx.shadowBlur = 0;
+
+            // Simulate progress in biofeedback mode
+            if (state === 'CALMING' && progress < 1.0) {
+                progress += 0.002;
+                updateInstruction(progress);
+            }
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // --- UI Logic ---
+        function startBiofeedback() {
+            document.getElementById('scene-review').classList.remove('fade-in');
+            document.getElementById('scene-review').classList.add('hidden');
+            
+            const bioScene = document.getElementById('scene-biofeedback');
+            bioScene.classList.remove('hidden');
+            bioScene.classList.add('fade-in');
+
+            state = 'CALMING';
+            progress = 0.0;
+        }
+
+        function dismiss() {
+            document.getElementById('ui-layer').style.display = 'none';
+        }
+
+        function updateInstruction(prog) {
+            const textEl = document.getElementById('instruction-text');
+            if (prog < 0.3) {
+                textEl.innerText = "Focus on your reflection...";
+            } else if (prog < 0.6) {
+                textEl.innerText = "Breathe in... 1... 2... 3...";
+            } else if (prog < 0.9) {
+                textEl.innerText = "Exhale slowly...";
+            } else {
+                textEl.innerText = "You have reached equilibrium.";
+            }
+        }
+
+        // Start
+        animate();
+    </script>
+</body>
+</html>
