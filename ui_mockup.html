@@ -20,6 +20,14 @@
     <!-- EmoMirror modules -->
     <script src="./tips.js"></script>
     <script src="./biosignal.js"></script>
+    <script src="./csv_parser.js"></script>
+    <script>
+        // Real CSV to use for the daily review. Press M while the app is open
+        // to toggle between CSV data and the embedded mock (reviewDataObj).
+        window.REVIEW_CSV_DEFAULT = './2026-04-25_11-32-15-268408.csv';
+        window.REVIEW_MODE = localStorage.getItem('reviewMode') || 'csv';
+        window.REVIEW_CSV_PATH = (window.REVIEW_MODE === 'mock') ? null : window.REVIEW_CSV_DEFAULT;
+    </script>
 
     <style>
         /* ─── Design Tokens ─────────────────────────────────────────── */
@@ -79,6 +87,9 @@
         }
         body.in-biofeedback #avatarCanvas {
             opacity: 1; /* Fade in when challenge starts */
+        }
+        body.in-biofeedback #ambient-layer {
+            opacity: 0;
         }
 
         /* ─── Ambient color bleed (between canvas and UI) ────────────── */
@@ -302,6 +313,39 @@
             z-index: 100;
             opacity: 0;
             pointer-events: none;
+        }
+
+        #data-mode-chip {
+            position: fixed;
+            top: 1.5rem; left: 1.5rem;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.18);
+            color: rgba(255,255,255,0.7);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 400;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            z-index: 100;
+            pointer-events: none;
+            transition: opacity 0.4s ease, color 0.4s ease, border-color 0.4s ease, background 0.4s ease;
+        }
+        #data-mode-chip.is-csv {
+            color: #4CD964;
+            border-color: rgba(76,217,100,0.4);
+            background: rgba(76,217,100,0.10);
+        }
+        #data-mode-chip.is-mock {
+            color: #FFD89E;
+            border-color: rgba(255,216,158,0.35);
+            background: rgba(255,216,158,0.10);
+        }
+        #data-mode-chip.is-error {
+            color: #FF6B61;
+            border-color: rgba(255,59,48,0.45);
+            background: rgba(255,59,48,0.12);
         }
 
         /* ─── Avatar Image ─────────────────────────────────────── */
@@ -1452,6 +1496,7 @@
 
     <!-- Demo mode chip -->
     <div id="demo-chip">Demo Mode</div>
+    <div id="data-mode-chip" aria-live="polite">DATA: LOADING…</div>
 
     <!-- Pre-load data to avoid CORS on file:// -->
     <script src="./review_data.js"></script>
@@ -1467,6 +1512,9 @@
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
             gsap.globalTimeline.timeScale(0.001);
         }
+
+        // Parsed CSV result (null when running in mock mode)
+        window.csvParsed = null;
 
         // ─── Canvas Setup ──────────────────────────────────────────────
         const canvas = document.getElementById('avatarCanvas');
@@ -1563,19 +1611,6 @@
             const sc = Math.min(width, height) / 500; // larger base scale
 
             const color = `rgba(${Math.round(avatarState.r)},${Math.round(avatarState.g)},${Math.round(avatarState.b)}`;
-
-            // Aura glow
-            const aura = avatarState.auraBlur + Math.sin(time + avatarState.auraBreath) * 12;
-            ctx.shadowColor = `${color},0.9)`;
-            ctx.shadowBlur  = aura;
-
-            // Secondary large ambient aura
-            ctx.beginPath();
-            ctx.arc(cx, cy - 20 * sc * avatarState.scale, 200 * sc * avatarState.scale, 0, Math.PI * 2);
-            ctx.fillStyle = `${color},0.04)`;
-            ctx.fill();
-
-            ctx.shadowBlur = 0;
 
             // Bloom aura ring (expands outward)
             if (avatarState.auraRingAlpha > 0.01) {
@@ -1774,6 +1809,28 @@
             }
         });
 
+        // ─── Mock-mode toggle (M key) — flips between real CSV and reviewDataObj ──
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'm' && e.key !== 'M') return;
+            if (e.target.matches('input, textarea')) return;
+            const next = (localStorage.getItem('reviewMode') === 'mock') ? 'csv' : 'mock';
+            localStorage.setItem('reviewMode', next);
+            const toast = document.createElement('div');
+            toast.textContent = `Switching to ${next.toUpperCase()} data…`;
+            toast.style.cssText = [
+                'position:fixed', 'top:50%', 'left:50%', 'transform:translate(-50%,-50%)',
+                'background:rgba(0,0,0,0.85)', 'color:#F5F5F7',
+                'padding:1rem 2rem', 'border-radius:12px',
+                'border:1px solid rgba(255,255,255,0.2)',
+                'font-family:Outfit,sans-serif', 'font-weight:200',
+                'letter-spacing:0.12em', 'text-transform:uppercase',
+                'font-size:0.9rem', 'z-index:9999',
+                'backdrop-filter:blur(12px)',
+            ].join(';');
+            document.body.appendChild(toast);
+            setTimeout(() => location.reload(), 600);
+        });
+
         // ─── Challenge Engine ──────────────────────────────────────────
         // Encapsulates all biofeedback challenge state: box breathing phase
         // state machine, RSA computation, HP bar updates, tip rotation, win/loss.
@@ -1816,10 +1873,13 @@
             let _running       = false;
             let _currentTip    = '';
 
-            // Cycle-amplitude RSA: tracks inhale peak and exhale trough per cycle,
-            // averages last 3 completed cycles. No sticky-max problem.
-            let _inhalePeak   = null;
-            let _exhaleValley = null;
+            // Cycle-amplitude RSA: trimmed-percentile method.
+            // Collects all HR samples in each phase, then computes:
+            //   p75(inhale samples) − p25(exhale samples)
+            // This is far more robust than peak/trough against single noisy
+            // samples from the smoothed EmotiBit HR stream.
+            let _inhaleHRs    = [];   // samples collected this inhale+hold_top
+            let _exhaleHRs    = [];   // samples collected this exhale+hold_bot
             let _cycleAmps    = [];
             let _confirmedRSA = 0;
 
@@ -1883,33 +1943,54 @@
             // Dot starts at midpoint of the top side (Inhale)
             let _lapT = 0; // 0→1 across the full perimeter, per phase
 
-            // ── RSA computation (per-cycle amplitude) ────────────────────
-            // Track peak during inhale, trough during exhale.
-            // On exhale end: record amplitude, average last 3 cycles.
-            // Between cycle completions: show a live preview during exhale
-            // (inhale peak − current HR) so the bar isn't frozen mid-cycle.
+            // ── RSA computation (trimmed-percentile) ─────────────────────
+            // Collect all HR samples per phase into arrays.
+            // At cycle end: RSA = p75(inhale) − p25(exhale).
+            // The percentile approach discards the top/bottom 25% of samples,
+            // making the metric immune to single noisy spikes from the
+            // smoothed 1 Hz EmotiBit HR stream.
+
+            // Returns the p-th percentile (0–1) of a sorted array.
+            function _pct(sorted, p) {
+                if (!sorted.length) return 0;
+                const idx = p * (sorted.length - 1);
+                const lo  = Math.floor(idx);
+                const hi  = Math.ceil(idx);
+                return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+            }
 
             function _onNewHR({ hr }) {
                 if (!_running) return;
                 _lastHR = hr;
                 const phase = PHASES[_phaseIdx].name;
                 if (phase === 'inhale' || phase === 'hold_top') {
-                    if (_inhalePeak === null || hr > _inhalePeak) _inhalePeak = hr;
+                    _inhaleHRs.push(hr);
                 }
                 if (phase === 'exhale' || phase === 'hold_bot') {
-                    if (_exhaleValley === null || hr < _exhaleValley) _exhaleValley = hr;
+                    _exhaleHRs.push(hr);
                 }
             }
 
             function _recordCycle() {
-                if (_inhalePeak !== null && _exhaleValley !== null) {
-                    const amp = Math.max(0, _inhalePeak - _exhaleValley);
-                    _cycleAmps.push(amp);
-                    if (_cycleAmps.length > 3) _cycleAmps.shift();
-                    _confirmedRSA = _cycleAmps.reduce((a, b) => a + b, 0) / _cycleAmps.length;
+                if (_inhaleHRs.length >= 2 && _exhaleHRs.length >= 2) {
+                    const sortedIn  = [..._inhaleHRs].sort((a, b) => a - b);
+                    const sortedEx  = [..._exhaleHRs].sort((a, b) => a - b);
+                    const p75inhale = _pct(sortedIn, 0.75);
+                    const p25exhale = _pct(sortedEx, 0.25);
+                    const amp = Math.max(0, p75inhale - p25exhale);
+                    // Reject physiologically implausible spikes (> 15 bpm for
+                    // percentile-based metric is already very high)
+                    if (amp <= 15) {
+                        _cycleAmps.push(amp);
+                        if (_cycleAmps.length > 3) _cycleAmps.shift();
+                        _confirmedRSA = _cycleAmps.reduce((a, b) => a + b, 0) / _cycleAmps.length;
+                    } else {
+                        console.warn(`[RSA] Rejected cycle: p75=${p75inhale.toFixed(1)}, p25=${p25exhale.toFixed(1)}, amp=${amp.toFixed(1)} bpm`);
+                    }
                 }
-                _inhalePeak   = null;
-                _exhaleValley = null;
+                // Reset for next cycle
+                _inhaleHRs = [];
+                _exhaleHRs = [];
             }
 
             // ── 100ms visual refresh loop ────────────────────────────────
@@ -1918,12 +1999,14 @@
                 const phase = PHASES[_phaseIdx].name;
                 let target = _confirmedRSA;
 
-                // During exhale: show live preview (inhale peak − current HR)
-                // so bar climbs in real time rather than waiting for cycle end.
-                // Cap at _confirmedRSA * 1.5 to prevent over-promising.
-                if ((phase === 'exhale') && _inhalePeak !== null && _lastHR !== null) {
-                    const liveGap = Math.max(0, _inhalePeak - _lastHR);
-                    target = Math.max(_confirmedRSA, Math.min(liveGap, _confirmedRSA + 4));
+                // During exhale: live preview using p75 of inhale samples
+                // collected so far vs current HR. Both values are already
+                // smoothed/trimmed so no extra cap is needed beyond 15 bpm.
+                if (phase === 'exhale' && _inhaleHRs.length >= 1 && _lastHR !== null) {
+                    const sortedIn  = [..._inhaleHRs].sort((a, b) => a - b);
+                    const p75inhale = _pct(sortedIn, 0.75);
+                    const liveGap   = Math.min(15, Math.max(0, p75inhale - _lastHR));
+                    target = Math.max(_confirmedRSA, Math.min(liveGap, _displayRSA + 3));
                 }
 
                 _displayRSA += (target - _displayRSA) * 0.12;
@@ -2027,6 +2110,11 @@
                 const phase = PHASES[_phaseIdx];
                 _phaseSecsLeft = phase.dur;
 
+                // Reset the sample buffer for the INCOMING phase so old
+                // samples from the previous cycle don't contaminate the next.
+                if (phase.name === 'inhale')  _inhaleHRs = [];
+                if (phase.name === 'exhale')  _exhaleHRs = [];
+
                 // Update label highlights
                 PHASES.forEach((p, i) => {
                     const el = document.getElementById(p.label);
@@ -2113,12 +2201,14 @@
                     _won          = false;
                     _inhalePeak   = null;
                     _exhaleValley = null;
+                    _inhaleHRs    = [];
+                    _exhaleHRs    = [];
                     _cycleAmps    = [];
                     _confirmedRSA = 0;
                     _displayRSA   = 0;
 
                     _baseline = 0;
-                    _target   = 6; // bpm swing target, calibrated for smoothed EmotiBit HR
+                    _target   = 9; // bpm target for trimmed-percentile RSA
                     // Target line sits at 100% fill (top of bar)
                     const targetPct = 100;
                     if (_els.targetLine) _els.targetLine.style.bottom = targetPct + '%';
@@ -2188,36 +2278,66 @@
 
         // ─── Daily Review JS ───────────────────────────────────────────
         async function loadReview() {
+            const chip = document.getElementById('data-mode-chip');
+            const setChip = (cls, label) => {
+                if (!chip) return;
+                chip.classList.remove('is-csv', 'is-mock', 'is-error');
+                chip.classList.add(cls);
+                chip.textContent = label;
+            };
+
+            // 1) Real CSV
+            if (window.REVIEW_CSV_PATH && window.parseEmotiBitCSV) {
+                try {
+                    const fetchT0 = performance.now();
+                    const res = await fetch(window.REVIEW_CSV_PATH);
+                    if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${window.REVIEW_CSV_PATH}`);
+                    const text = await res.text();
+                    const fetchMs = Math.round(performance.now() - fetchT0);
+                    const filename = window.REVIEW_CSV_PATH.split('/').pop();
+                    console.log(`[review] fetched ${filename} (${(text.length/1e6).toFixed(1)} MB) in ${fetchMs} ms`);
+                    const parsed = window.parseEmotiBitCSV(text, filename);
+                    window.csvParsed = parsed;
+                    const d = parsed.diagnostics;
+                    console.log(`[review] mode=csv parse=${d.parseMs}ms hr=${d.hrCount} sf=${d.sfCount} acc=${d.activCount} cardioAvg=${d.cardioAvg.toFixed(1)} stressAvg=${d.stressAvg.toFixed(1)} activityAvg=${d.activityAvg.toFixed(1)} duration=${(d.durationMs/3.6e6).toFixed(2)}h`);
+                    applyReview(parsed.review);
+                    setChip('is-csv', `CSV · ${filename.slice(0, 10)}`);
+                    return;
+                } catch (e) {
+                    console.error('[review] CSV path failed:', e);
+                    setChip('is-error', 'CSV PARSE FAILED — using mock');
+                }
+            }
+
+            // 2) review.json
             try {
-                // Try fetch first (if on server)
                 const res = await fetch('./review.json');
                 if (res.ok) {
-                    const data = await res.json();
-                    renderDashboards(data);
-                    renderQuestions(data);
-                    
-                    // Update tagline
-                    const h2 = document.querySelector('#scene-review h2');
-                    if (h2 && data.summary && data.summary.tagline) {
-                        h2.textContent = data.summary.tagline;
-                    }
+                    applyReview(await res.json());
+                    console.log('[review] mode=review.json');
+                    setChip('is-mock', 'DATA: review.json');
                     return;
                 }
-            } catch (e) {
-                console.warn("Fetch failed (likely CORS on file://), falling back to review_data.js");
-            }
-            // Fallback
+            } catch (e) {}
+
+            // 3) Embedded mock
             if (typeof reviewDataObj !== 'undefined') {
-                renderDashboards(reviewDataObj);
-                renderQuestions(reviewDataObj);
-                
-                // Update tagline
-                const h2 = document.querySelector('#scene-review h2');
-                if (h2 && reviewDataObj.summary && reviewDataObj.summary.tagline) {
-                    h2.textContent = reviewDataObj.summary.tagline;
-                }
+                applyReview(reviewDataObj);
+                console.log('[review] mode=mock (review_data.js)');
+                // Don't overwrite the error chip if the CSV branch already failed
+                if (chip && !chip.classList.contains('is-error')) setChip('is-mock', 'DATA: MOCK');
             } else {
-                console.error("No review data available.");
+                console.error('[review] no data sources available');
+                setChip('is-error', 'NO DATA');
+            }
+        }
+
+        function applyReview(data) {
+            renderDashboards(data);
+            renderQuestions(data);
+            const h2 = document.querySelector('#scene-review h2');
+            if (h2 && data.summary && data.summary.tagline) {
+                h2.textContent = data.summary.tagline;
             }
         }
 
@@ -2352,7 +2472,8 @@
 
             // ── Mocked day data: 30-min slots from 08:00 → 18:00 ───────
             // Each slot has: time, state, headline + question + mockAnswer.
-            const REPORTS = [
+            // Overwritten from window.csvParsed inside init() when real CSV is loaded.
+            let REPORTS = [
                 { t: '08:00', state: 'calm',           text: 'Slow morning. Steady heart, steady breath.',                question: 'What set the tone today?',          mockAnswer: 'The quiet before anyone else woke up.' },
                 { t: '08:30', state: 'calm',           text: 'Coffee + sunlight. Body relaxed, attention soft.',          question: 'What were you sensing then?',        mockAnswer: 'Warm mug, light through the curtains.' },
                 { t: '09:00', state: 'active',         text: 'Walking. Energy moving outward, posture open.',             question: 'Where were you walking to?',         mockAnswer: 'Just around the block, no destination.' },
@@ -2377,7 +2498,8 @@
             ];
 
             // ── Computed meter summaries (from data, with a calm bias) ─
-            const METERS = [
+            // Overwritten from window.csvParsed inside init() when real CSV is loaded.
+            let METERS = [
                 { id: 'cardio',   title: 'Cardiovascular Load', value: 50, ringPct: 0.50, color: '#FF6B61', evalText: 'Normal Load',  vsWeek: '+13% vs week' },
                 { id: 'stress',   title: 'Stress & Arousal',    value: 23, ringPct: 0.23, color: '#FFB75A', evalText: 'Low Stress',   vsWeek: '-42% vs week' },
                 { id: 'activity', title: 'Activity level',      value: 23, ringPct: 0.23, color: '#7FE8FF', evalText: 'Low activity', vsWeek: '-70% vs week' },
@@ -2466,10 +2588,23 @@
 
             // ── Render scrubber ticks ───────────────────────────────────
             function _renderScrubber() {
-                // major ticks at 8, 10, 12, 14, 16, 18
-                const majors = ['8:00', '10:00', '12:00', '14:00', '16:00', '18:00'];
-                const startMin = 8 * 60, endMin = 18 * 60;
+                // Use real recording window when CSV data is available; fall back to 8–18
+                let startMin = 8 * 60, endMin = 18 * 60;
+                if (window.csvParsed) {
+                    const s = window.csvParsed.startDate;
+                    const e = window.csvParsed.endDate;
+                    startMin = s.getHours() * 60 + s.getMinutes();
+                    endMin   = e.getHours() * 60 + e.getMinutes();
+                }
                 const span = endMin - startMin;
+
+                // Pick ~6 evenly spaced ticks rounded to the hour
+                const startHr = Math.ceil(startMin / 60);
+                const endHr   = Math.floor(endMin   / 60);
+                const step    = Math.max(1, Math.ceil((endHr - startHr) / 5));
+                const majors  = [];
+                for (let h = startHr; h <= endHr; h += step) majors.push(`${h}:00`);
+
                 els.scrubTrack.querySelectorAll('.dr-scrub-tick').forEach(n => n.remove());
                 majors.forEach(label => {
                     const [h, m] = label.split(':').map(Number);
@@ -3009,6 +3144,18 @@
                 init() {
                     _resolveEls();
                     _loadReplies();
+
+                    // Overwrite mock REPORTS/METERS with parsed CSV data when available
+                    if (window.csvParsed) {
+                        if (window.csvParsed.reports && window.csvParsed.reports.length) REPORTS = window.csvParsed.reports;
+                        if (window.csvParsed.meters  && window.csvParsed.meters.length)  METERS  = window.csvParsed.meters;
+                        // Update out-banner duration from real recording
+                        if (els.outHours && window.csvParsed.durationHours) {
+                            const h = window.csvParsed.durationHours;
+                            els.outHours.textContent = `${h.toFixed(1)} hours long!`;
+                        }
+                    }
+
                     _renderMeters();
                     _renderScrubber();
                     _renderReports();
@@ -3170,6 +3317,8 @@
         setAmbient('rgba(74,180,255,0.08)');
 
         window.addEventListener('DOMContentLoaded', async () => {
+            const chip = document.getElementById('data-mode-chip');
+            if (chip) chip.textContent = 'DATA: LOADING…';
             await loadReview();
             dayRecap.init();
             dayRecap.play();
