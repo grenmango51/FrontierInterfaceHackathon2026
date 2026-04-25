@@ -1132,14 +1132,12 @@
             /* bottom% set by JS */
         }
 
-        /* Win-hold arc around target marker */
+        /* Win-hold arc shown above Calm label */
         .hp-win-arc {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
+            display: block;
             width: 40px;
             height: 40px;
-            /* bottom set by JS */
+            margin: 0 auto var(--sp-2);
         }
 
         .hp-target-label {
@@ -1149,6 +1147,49 @@
             color: rgba(255,255,255,0.35);
             text-align: center;
             margin-top: var(--sp-2);
+        }
+
+        /* ─── Loading screen ──────────────────────────────────────────── */
+        #scene-loading {
+            z-index: 50;
+            flex-direction: column;
+            gap: var(--sp-6);
+            background: var(--bg);
+        }
+
+        .loading-orb {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 38% 38%, rgba(74,200,255,0.9), rgba(74,200,255,0.15) 70%);
+            box-shadow: 0 0 40px rgba(74,200,255,0.35), 0 0 80px rgba(74,200,255,0.15);
+            animation: orb-pulse 2.4s ease-in-out infinite;
+        }
+
+        @keyframes orb-pulse {
+            0%, 100% { transform: scale(1);   opacity: 0.75; }
+            50%       { transform: scale(1.18); opacity: 1; }
+        }
+
+        .loading-label {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 200;
+            font-size: clamp(0.8rem, 1.6vw, 1rem);
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--fg-muted);
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.8s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%  { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
         }
 
         /* Avatar + glitch clones re-parented into box during challenge */
@@ -1315,6 +1356,12 @@
         </div>
 
         <!-- Scene 2: Biofeedback Challenge -->
+        <!-- Loading screen between day recap and biofeedback -->
+        <div id="scene-loading" class="scene">
+            <div class="loading-orb"></div>
+            <span class="loading-label loading-dots">Calibrating biosignal</span>
+        </div>
+
         <div id="scene-biofeedback" class="scene">
 
             <!-- Left: tip panel + quotes + stop button -->
@@ -1370,22 +1417,22 @@
 
             <!-- Right: RSA HP bar -->
             <div class="bf-right">
+                <svg class="hp-win-arc" id="hp-win-arc"
+                     viewBox="0 0 40 40" style="display:none;">
+                    <circle cx="20" cy="20" r="16"
+                            fill="none" stroke="rgba(76,217,100,0.5)" stroke-width="2.5"
+                            stroke-dasharray="100.5" stroke-dashoffset="100.5"
+                            transform="rotate(-90 20 20)"
+                            id="hp-win-circle"/>
+                </svg>
                 <div class="hp-label">Calm</div>
                 <div class="hp-value" id="hp-value-text">— bpm</div>
                 <div class="hp-bar-wrap" id="hp-bar-wrap">
                     <div class="hp-bar-track"></div>
                     <div class="hp-bar-fill" id="hp-bar-fill"></div>
                     <div class="hp-target-line" id="hp-target-line" style="bottom: 70%"></div>
-                    <svg class="hp-win-arc" id="hp-win-arc"
-                         viewBox="0 0 40 40" style="bottom: calc(70% - 20px); display:none">
-                        <circle cx="20" cy="20" r="16"
-                                fill="none" stroke="rgba(76,217,100,0.5)" stroke-width="2.5"
-                                stroke-dasharray="100.5" stroke-dashoffset="100.5"
-                                transform="rotate(-90 20 20)"
-                                id="hp-win-circle"/>
-                    </svg>
                 </div>
-                <div class="hp-target-label">target</div>
+                <div class="hp-target-label">Chaos</div>
             </div>
 
         </div>
@@ -1602,24 +1649,22 @@
         // ─── Scene 1 → Scene 2 ─────────────────────────────────────────
         function startBiofeedback() {
             const s1 = document.getElementById('scene-review');
+            const sl = document.getElementById('scene-loading');
             const s2 = document.getElementById('scene-biofeedback');
 
-            s2.classList.add('active');
-            setAmbient('rgba(74,200,255,0.08)');
-
             if (alarmPulse) alarmPulse.kill();
-
-            // Calm the glitch before avatar moves into the box
             gsap.to(avatarState, { glitch: 0, auraBlur: 20, duration: 1.0 });
 
+            sl.classList.add('active');
             const tl = gsap.timeline();
             tl.to(s1, { opacity: 0, y: -8, duration: 0.9, ease: 'power2.in',
-                        onComplete: () => {
-                            s1.classList.remove('active');
-                            document.body.classList.remove('in-review');
-                        }})
-              .to(s2, { opacity: 1, duration: 1.4, ease: 'emoMirror' }, '-=0.2')
-              .call(initChallenge);
+                        onComplete: () => { s1.classList.remove('active'); document.body.classList.remove('in-review'); }})
+              .to(sl, { opacity: 1, duration: 0.7, ease: 'power2.out' }, '-=0.1')
+              .call(() => { setAmbient('rgba(74,200,255,0.08)'); initChallenge(); })
+              .to(sl, { opacity: 0, duration: 0.6, ease: 'power2.in', delay: 1.8,
+                        onComplete: () => sl.classList.remove('active') })
+              .call(() => s2.classList.add('active'))
+              .to(s2, { opacity: 1, duration: 1.0, ease: 'emoMirror' }, '-=0.1');
         }
 
         // ─── STOP (mid-challenge) ───────────────────────────────────────
@@ -2077,7 +2122,6 @@
                     // Target line sits at 100% fill (top of bar)
                     const targetPct = 100;
                     if (_els.targetLine) _els.targetLine.style.bottom = targetPct + '%';
-                    if (_els.winArc)     _els.winArc.style.bottom     = `calc(${targetPct}% - 20px)`;
 
                     // Set initial dot position (start of top/inhale side)
                     const pt = _pathPoint(0);
@@ -3049,23 +3093,36 @@
         // Override scene transitions so old #scene-review is bypassed and
         // the day-recap is the "home" scene the user comes back to.
         startBiofeedback = function () {
-            const dr = document.getElementById('scene-day-recap');
-            const s2 = document.getElementById('scene-biofeedback');
-            s2.classList.add('active');
-            setAmbient('rgba(74,200,255,0.08)');
+            const dr  = document.getElementById('scene-day-recap');
+            const sl  = document.getElementById('scene-loading');
+            const s2  = document.getElementById('scene-biofeedback');
+
             if (alarmPulse) alarmPulse.kill();
-            // Bring main avatar back for biofeedback
-            ['#avatar-figure', '.glitch-r', '.glitch-b'].forEach(sel => {
-                document.querySelectorAll(sel).forEach(el => { el.style.display = ''; });
-            });
-            gsap.set(['#avatar-figure', '.glitch-r', '.glitch-b'], { clearProps: 'opacity' });
-            gsap.to('#avatarCanvas', { opacity: 1, duration: 0.6 });
-            gsap.to(avatarState, { glitch: 0, auraBlur: 20, duration: 1.0 });
+
+            // Phase 1: fade day-recap out → loading screen in
+            sl.classList.add('active');
             const tl = gsap.timeline();
             tl.to(dr, { opacity: 0, y: -8, duration: 0.9, ease: 'power2.in',
                 onComplete: () => { dr.classList.remove('active'); document.body.classList.remove('in-day-recap'); }})
-              .to(s2, { opacity: 1, duration: 1.4, ease: 'emoMirror' }, '-=0.2')
-              .call(initChallenge);
+              .to(sl, { opacity: 1, duration: 0.7, ease: 'power2.out' }, '-=0.1')
+
+            // Phase 2: while loading screen is shown, spin up the pipeline
+              .call(() => {
+                    setAmbient('rgba(74,200,255,0.08)');
+                    ['#avatar-figure', '.glitch-r', '.glitch-b'].forEach(sel => {
+                        document.querySelectorAll(sel).forEach(el => { el.style.display = ''; });
+                    });
+                    gsap.set(['#avatar-figure', '.glitch-r', '.glitch-b'], { clearProps: 'opacity' });
+                    gsap.to('#avatarCanvas', { opacity: 1, duration: 0.6 });
+                    gsap.to(avatarState, { glitch: 0, auraBlur: 20, duration: 1.0 });
+                    initChallenge();
+              })
+
+            // Phase 3: after a beat, fade loading out → biofeedback in
+              .to(sl, { opacity: 0, duration: 0.6, ease: 'power2.in', delay: 1.8,
+                onComplete: () => sl.classList.remove('active') })
+              .call(() => s2.classList.add('active'))
+              .to(s2, { opacity: 1, duration: 1.0, ease: 'emoMirror' }, '-=0.1');
         };
 
         stopChallenge = function () {
