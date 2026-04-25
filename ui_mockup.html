@@ -8,10 +8,10 @@
     <!-- Preload primary font weight -->
     <link rel="preload" href="https://fonts.gstatic.com/s/outfit/v11/QGYvz_MVcBeNP4NJtEtq.woff2" as="font" type="font/woff2" crossorigin>
 
-    <!-- Typography: Outfit (primary) + Fraunces (editorial accent) -->
+    <!-- Typography: Outfit (primary) + Fraunces (editorial accent) + Inter + DM Sans (Day Recap) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600&family=Fraunces:ital,wght@1,300&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600&family=Fraunces:ital,wght@1,300&family=Inter:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 
     <!-- GSAP 3.12.5 + free plugins -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -391,6 +391,562 @@
         .mic-btn svg { width: 20px; height: 20px; fill: currentColor; }
         .actions-bottom { margin-top: var(--sp-6); opacity: 0; }
 
+        /* ─── Day Recap Scene ────────────────────────────────────────── */
+        #scene-day-recap {
+            font-family: 'DM Sans', sans-serif;
+            display: grid;
+            grid-template-columns: 21fr 40fr 30fr;
+            grid-template-rows: auto 1fr;
+            grid-template-areas:
+                "head head head"
+                "left center right";
+            gap: 0;
+            padding: 0;
+            align-items: stretch;
+        }
+
+        /* ── Header ─────────────────────────────────────────────────────── */
+        .dr-header {
+            grid-area: head;
+            text-align: center;
+            padding: 2vh 0 1vh;
+            z-index: 5;
+        }
+        .dr-header h1 {
+            font-weight: 200;
+            font-size: clamp(2.11rem, 3vw, 2.91rem);
+            letter-spacing: 0.05em;
+            margin: 0;
+            color: #fff;
+        }
+        .dr-header .dr-sub {
+            font-family: 'Fraunces', serif;
+            font-style: italic;
+            color: rgba(255,255,255,0.5);
+            font-size: clamp(1.21rem, 1.4vw, 1.41rem);
+            margin-top: 0.3rem;
+        }
+
+        /* ── Left column ─────────────────────────────────────────────────── */
+        .dr-left {
+            grid-area: left;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: stretch;
+            padding: 1.5vh 1.2vw 6vh 1.8vw;
+            gap: 1rem;
+            min-width: 0;
+        }
+
+        /* Playback button — matches demo pill style */
+        .dr-playback-btn {
+            background: linear-gradient(135deg, rgba(140,90,255,0.35), rgba(100,60,200,0.25));
+            border: 1px solid rgba(160,110,255,0.6);
+            color: #E8DAFF;
+            padding: 0.65rem 1.1rem;
+            min-height: 44px;
+            font-size: 1.19rem;
+            font-weight: 400;
+            letter-spacing: 0.04em;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            box-shadow: 0 0 24px rgba(140,90,255,0.3);
+            transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
+        }
+        .dr-playback-btn:hover {
+            background: linear-gradient(135deg, rgba(160,110,255,0.45), rgba(120,75,220,0.35));
+            box-shadow: 0 0 32px rgba(150,100,255,0.5);
+        }
+        .dr-playback-btn.playing {
+            background: linear-gradient(135deg, rgba(255,170,80,0.32), rgba(200,110,50,0.22));
+            border-color: rgba(255,190,110,0.65);
+            color: #FFE5B8;
+            box-shadow: 0 0 24px rgba(255,150,60,0.35);
+        }
+        .dr-playback-btn svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
+
+        /* Meters — match demo: label pill + ring + eval text below */
+        .dr-meters {
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+        .dr-meter {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        .dr-meter-row {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+        }
+        /* Label pill exactly like demo */
+        .dr-meter-pill {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.85);
+            background: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 28px;
+            padding: 0.45rem 1.2rem;
+            white-space: nowrap;
+        }
+        .dr-meter-ring {
+            width: 72px; height: 72px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .dr-meter-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .dr-meter-ring .ring-track { stroke: rgba(255,255,255,0.10); stroke-width: 6; fill: none; }
+        .dr-meter-ring .ring-fill  { stroke-width: 6; fill: none; stroke-linecap: round;
+            transition: stroke-dashoffset 1.4s cubic-bezier(.4,0,.2,1); }
+        .dr-meter-ring .ring-num {
+            position: absolute; inset: 0;
+            display: flex; justify-content: center; align-items: center;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.6rem; font-weight: 300; color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+        /* Eval + vs-week below the pill+ring row */
+        .dr-meter-eval {
+            font-size: 1.6rem;
+            color: rgba(255,255,255,0.9);
+            font-weight: 400;
+            padding-left: 0.1rem;
+        }
+        .dr-meter-vs {
+            font-size: 1.4rem;
+            color: rgba(255,255,255,0.45);
+            padding-left: 0.1rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Center column ───────────────────────────────────────────────── */
+        .dr-center {
+            grid-area: center;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .dr-body-stage {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .dr-aura {
+            position: absolute;
+            inset: -8%;
+            border-radius: 50%;
+            pointer-events: none;
+            background: radial-gradient(ellipse 55% 65% at 50% 50%,
+                        var(--aura-color, rgba(74,200,255,0.32)) 0%,
+                        rgba(0,0,0,0) 65%);
+            filter: blur(var(--aura-blur, 28px));
+            opacity: var(--aura-opacity, 0.85);
+            transform: scale(var(--aura-scale, 1));
+            z-index: 0;
+        }
+        .dr-aura.aura-secondary {
+            inset: 4%;
+            filter: blur(calc(var(--aura-blur, 28px) * 0.4));
+            opacity: calc(var(--aura-opacity, 0.85) * 0.55);
+        }
+        .dr-body-img {
+            position: absolute;
+            top: 50%; left: 50%;
+            height: 82%; width: auto; max-width: 94%;
+            object-fit: contain;
+            mix-blend-mode: screen;
+            filter:
+                drop-shadow(0 0 8px var(--body-glow, rgba(74,200,255,0.7)))
+                drop-shadow(0 0 24px var(--body-glow, rgba(74,200,255,0.45)));
+            opacity: 0;
+            transition: opacity 0.9s ease, filter 0.7s ease;
+            z-index: 2;
+            will-change: transform, opacity;
+            -webkit-mask-image: linear-gradient(to bottom, black 0%, black 83%, transparent 95%);
+            mask-image: linear-gradient(to bottom, black 0%, black 83%, transparent 95%);
+            transform: translate(-50%, -50%);
+            transform-origin: center center;
+        }
+        .dr-body-img.is-active { opacity: 1; }
+
+        @keyframes dr-pulse-calm {
+            0%,100% { transform:translate(-50%,-50%) scale(1); }
+            50%     { transform:translate(-50%,-50%) scale(1.013); }
+        }
+        @keyframes dr-pulse-stress {
+            0%,100% { transform:translate(-50%,-50%) scale(1); }
+            25%     { transform:translate(calc(-50% - 1px),-50%) scale(1.018); }
+            75%     { transform:translate(calc(-50% + 1px),-50%) scale(1.015); }
+        }
+        @keyframes dr-jitter-anxious {
+            0%,100% { transform:translate(-50%,-50%); }
+            25%     { transform:translate(calc(-50% - 0.8px),calc(-50% + 0.5px)); }
+            75%     { transform:translate(calc(-50% + 0.7px),calc(-50% - 0.4px)); }
+        }
+        @keyframes dr-pulse-active {
+            0%,100% { transform:translate(-50%,-50%) scale(1); }
+            50%     { transform:translate(-50%,-50%) scale(1.026); }
+        }
+        @keyframes dr-droop-fatigued {
+            0%,100% { transform:translate(-50%,-50%) scale(1); }
+            50%     { transform:translate(-50%,calc(-50% + 4px)) scale(0.994); }
+        }
+        @keyframes dr-shake-over {
+            0%,100%{ transform:translate(-50%,-50%) scale(1); }
+            15%    { transform:translate(calc(-50% - 1.5px),calc(-50% + 1px)) scale(1.01); }
+            40%    { transform:translate(calc(-50% + 1.6px),calc(-50% - 0.8px)) scale(0.995); }
+            65%    { transform:translate(calc(-50% - 1.2px),calc(-50% + 0.6px)) scale(1.015); }
+            85%    { transform:translate(calc(-50% + 0.8px),calc(-50% - 0.5px)) scale(1); }
+        }
+        .dr-body-img.state-calm           { animation: dr-pulse-calm 5.5s ease-in-out infinite; }
+        .dr-body-img.state-stressed       { animation: dr-pulse-stress 1.1s ease-in-out infinite; }
+        .dr-body-img.state-anxious        { animation: dr-jitter-anxious 0.35s steps(2) infinite; }
+        .dr-body-img.state-active         { animation: dr-pulse-active 1.6s ease-in-out infinite; }
+        .dr-body-img.state-fatigued       { animation: dr-droop-fatigued 4.5s ease-in-out infinite; }
+        .dr-body-img.state-overstimulated { animation: dr-shake-over 0.55s linear infinite; }
+
+        .dr-scanlines {
+            position:absolute; inset:0; pointer-events:none; z-index:3; opacity:0;
+            mix-blend-mode:overlay;
+            background-image: repeating-linear-gradient(to bottom,
+                rgba(255,255,255,0.07) 0px, rgba(255,255,255,0.07) 1px,
+                rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px);
+            transition: opacity 0.6s ease;
+        }
+        .dr-scanlines.show { opacity: 0.45; }
+        .dr-particles { position:absolute; inset:0; pointer-events:none; z-index:4; opacity:0; transition:opacity 0.6s ease; }
+        .dr-particles.show { opacity: 1; }
+
+        .dr-state-label {
+            position: absolute; top: 1rem; left: 50%; transform: translateX(-50%);
+            font-family: 'Inter', sans-serif;
+            font-size: 1.03rem; letter-spacing: 0.2em; text-transform: uppercase;
+            color: rgba(255,255,255,0.6);
+            padding: 0.28rem 1rem;
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 20px; backdrop-filter: blur(8px); z-index: 5;
+            transition: color 0.6s, border-color 0.6s, box-shadow 0.6s;
+        }
+        .dr-bottom-actions {
+            position: absolute; bottom: 1.6rem; right: 1.6rem;
+            display: flex; gap: 0.7rem; z-index: 30;
+        }
+        .dr-bottom-actions button { padding: 0.6rem 1.3rem; font-size: 1.19rem; min-height: 40px; }
+        .dr-bottom-actions .btn-primary-bf {
+            background: linear-gradient(135deg, rgba(74,200,255,0.3), rgba(40,140,220,0.2));
+            border-color: rgba(120,210,255,0.6); color: #DFF6FF;
+        }
+        .dr-bottom-actions .btn-primary-bf:hover {
+            box-shadow: 0 0 22px rgba(74,200,255,0.45);
+        }
+
+        /* ── Right column ────────────────────────────────────────────────── */
+        .dr-right {
+            grid-area: right;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5vh 1.8vw 2vh 0.8vw;
+            gap: 0.8rem;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        /* Out banner — matches demo bold header style */
+        .dr-out-banner {
+            text-align: center;
+            padding: 0.4rem 0.5rem 0.6rem;
+            color: #fff;
+            font-size: 1.31rem;
+            line-height: 1.4;
+            font-weight: 300;
+            letter-spacing: 0.01em;
+        }
+        .dr-out-banner strong {
+            font-weight: 700;
+            font-size: 1.41rem;
+            color: #fff;
+        }
+
+        /* Timeline + reports wrapper */
+        .dr-timeline-row {
+            display: grid;
+            grid-template-columns: 44px 1fr;
+            gap: 0;
+            flex: 1;
+            min-height: 0;
+            align-items: stretch;
+        }
+
+        /* Vertical scrubber — thin line matching demo */
+        .dr-scrubber {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.4rem 0;
+            user-select: none;
+            touch-action: none;
+        }
+        .dr-scrub-track {
+            position: relative;
+            width: 2px;
+            flex: 1;
+            background: rgba(255,255,255,0.15);
+            border-radius: 2px;
+        }
+        /* Time labels on left of track */
+        .dr-scrub-tick {
+            position: absolute;
+            right: 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.09rem;
+            color: rgba(255,255,255,0.45);
+            transform: translateY(-50%);
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.02em;
+        }
+        .dr-scrub-tick.major {
+            color: rgba(255,255,255,0.75);
+            font-size: 1.16rem;
+            font-weight: 400;
+        }
+        .dr-scrub-handle {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 38% 32%, #fff, #B8E6FF 55%, #4AC8FF);
+            box-shadow: 0 0 0 3px rgba(74,200,255,0.3), 0 0 16px rgba(74,200,255,0.6);
+            cursor: grab; z-index: 4;
+            transition: box-shadow 0.3s;
+        }
+        .dr-scrub-handle.dragging {
+            cursor: grabbing;
+            box-shadow: 0 0 0 4px rgba(74,200,255,0.4), 0 0 28px rgba(74,200,255,0.75);
+        }
+
+        /* Reports — scroll viewport, fixed height, clips top/bottom */
+        .dr-reports-wrap {
+            position: relative;
+            overflow: hidden;
+            min-height: 0;
+            /* Fade top and bottom edges like demo */
+            -webkit-mask-image: linear-gradient(to bottom,
+                transparent 0%, black 15%, black 85%, transparent 100%);
+            mask-image: linear-gradient(to bottom,
+                transparent 0%, black 15%, black 85%, transparent 100%);
+        }
+        .dr-reports-list {
+            position: absolute;
+            left: 0; right: 0;
+            /* top:50% so the active (center) item sits at mid-height */
+            top: 50%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 0 2px;
+            will-change: transform;
+            transition: transform 0.4s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+        .dr-reports-list.is-dragging {
+            transition: none;
+        }
+
+        /* Individual report card — exact demo feel */
+        .dr-report {
+            position: relative;
+            border-radius: 12px;
+            padding: 1rem 1.1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            /* default: muted dark pill */
+            background: rgba(30,32,45,0.55);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.45);
+            font-size: 1.26rem;
+            line-height: 1.4;
+            transition:
+                background 0.38s ease,
+                border-color 0.38s ease,
+                color 0.38s ease,
+                opacity 0.38s ease,
+                transform 0.38s ease,
+                box-shadow 0.45s ease;
+            opacity: 0.35;
+            transform: scale(0.93);
+            cursor: pointer;
+        }
+        .dr-report:hover {
+            background: rgba(45,48,65,0.7);
+            border-color: rgba(255,255,255,0.15);
+            opacity: 0.8;
+        }
+        .dr-report .r-time {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.03rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 0.15rem;
+        }
+        .dr-report .r-text {
+            font-size: 1.28rem;
+            font-weight: 300;
+            line-height: 1.45;
+            color: inherit;
+        }
+        /* Question popup — hidden by default, slides in when active */
+        .dr-report .r-question {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            margin-top: 0;
+            font-family: 'Fraunces', serif;
+            font-style: italic;
+            font-size: 1.28rem;
+            line-height: 1.4;
+            color: rgba(255,255,255,0.85);
+            transform: translateY(10px);
+            transition:
+                max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.1s,
+                opacity    0.4s ease 0.15s,
+                margin-top 0.4s ease 0.1s,
+                transform  0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s;
+        }
+        /* Neighbouring cards: slightly visible */
+        .dr-report.is-near {
+            opacity: 0.6;
+            transform: scale(0.96);
+            color: rgba(255,255,255,0.55);
+        }
+        /* Active card: solid gradient, full size, question visible */
+        .dr-report.is-active {
+            opacity: 1;
+            transform: scale(1.04);
+            color: #fff;
+            font-weight: 400;
+            background: var(--r-bg, linear-gradient(135deg, rgba(50,170,200,0.85), rgba(30,120,160,0.75)));
+            border-color: rgba(255,255,255,0.35);
+            box-shadow: 0 0 35px rgba(var(--r-tint, 74,200,255), 0.4),
+                        0 0 70px rgba(var(--r-tint, 74,200,255), 0.2);
+            z-index: 10;
+        }
+        .dr-report.is-active .r-time {
+            color: rgba(255,255,255,0.8);
+        }
+        .dr-report.is-active .r-question {
+            max-height: 5rem;
+            opacity: 1;
+            margin-top: 0.7rem;
+            transform: translateY(0);
+        }
+        /* Outer aura glow around active card */
+        .dr-report.is-active::after {
+            content: '';
+            position: absolute;
+            inset: -22px;
+            border-radius: 24px;
+            background: radial-gradient(ellipse 90% 70% at 50% 50%,
+                rgba(var(--r-tint, 74,200,255), 0.28), transparent 75%);
+            filter: blur(20px);
+            z-index: -1;
+            pointer-events: none;
+            animation: dr-active-pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes dr-active-pulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        /* ── Reply block ─────────────────────────────────────────────────── */
+        .dr-report .r-reply {
+            max-height: 0; overflow: hidden; opacity: 0; margin-top: 0;
+            transform: translateY(8px);
+            transition:
+                max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.25s,
+                opacity    0.4s ease 0.3s,
+                margin-top 0.4s ease 0.25s,
+                transform  0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s;
+        }
+        .dr-report.is-active .r-reply {
+            max-height: 8rem; opacity: 1; margin-top: 0.6rem; transform: translateY(0);
+        }
+        .r-reply-row { display: flex; gap: 0.5rem; align-items: flex-start; }
+        .r-reply-input {
+            flex: 1; min-height: 38px;
+            background: rgba(0,0,0,0.22);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 10px; color: #fff;
+            font-family: 'DM Sans', sans-serif; font-size: 1rem;
+            padding: 0.55rem 0.7rem; resize: none; line-height: 1.4;
+            transition: border-color 0.25s, background 0.25s;
+        }
+        .r-reply-input:focus {
+            outline: none;
+            border-color: rgba(var(--r-tint, 74,200,255), 0.7);
+            background: rgba(0,0,0,0.32);
+        }
+        .r-reply-input.has-saved {
+            font-family: 'Fraunces', serif; font-style: italic;
+            color: rgba(255,255,255,0.92);
+        }
+        .r-mic-btn {
+            flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+            color: #fff; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; padding: 0;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .r-mic-btn svg { width: 18px; height: 18px; fill: currentColor; pointer-events: none; }
+        .r-mic-btn:hover { background: rgba(255,255,255,0.15); }
+        .r-mic-btn.listening {
+            background: rgba(255,120,90,0.3); border-color: rgba(255,150,110,0.6);
+            animation: dr-mic-pulse 1.2s ease-in-out infinite;
+        }
+        @keyframes dr-mic-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,120,90,0.5); }
+            50%      { box-shadow: 0 0 0 6px rgba(255,120,90,0); }
+        }
+        .r-answered-dot {
+            position: absolute; top: 0.7rem; right: 0.8rem;
+            width: 7px; height: 7px; border-radius: 50%;
+            background: rgba(var(--r-tint, 74,200,255), 0.9);
+            box-shadow: 0 0 8px rgba(var(--r-tint, 74,200,255), 0.7);
+            opacity: 0; transition: opacity 0.4s ease;
+        }
+        .dr-report.is-answered .r-answered-dot { opacity: 1; }
+
+        @media (max-width: 1100px) {
+            #scene-day-recap {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto;
+                grid-template-areas: "head" "left" "center" "right";
+                overflow-y: auto;
+            }
+            .dr-center { min-height: 50vh; }
+        }
+
         /* ─── Reduced motion fallback ─────────────────────────────────── */
         @media (prefers-reduced-motion: reduce) {
             .glitch-r, .glitch-b { display: none; }
@@ -634,14 +1190,14 @@
     <!-- Ambient color bleed (z-index 1) -->
     <div id="ambient-layer"></div>
 
-    <div class="anatomy-figure" id="avatar-figure">
+    <div class="anatomy-figure" id="avatar-figure" style="display:none">
       <img src="avatar.png" alt="Holographic Avatar">
     </div>
     <!-- RGB-split glitch clones (aria-hidden) -->
-    <div class="anatomy-figure glitch-r" aria-hidden="true">
+    <div class="anatomy-figure glitch-r" aria-hidden="true" style="display:none">
       <img src="avatar.png" alt="Holographic Avatar">
     </div>
-    <div class="anatomy-figure glitch-b" aria-hidden="true">
+    <div class="anatomy-figure glitch-b" aria-hidden="true" style="display:none">
       <img src="avatar.png" alt="Holographic Avatar">
     </div>
 
@@ -687,6 +1243,75 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Scene 1.5: Day Recap -->
+        <div id="scene-day-recap" class="scene">
+            <!-- Header -->
+            <header class="dr-header">
+                <h1>Day Recap</h1>
+                <div class="dr-sub">Long day behind, time to rewind…</div>
+            </header>
+
+            <!-- Left: playback + 3 meters -->
+            <aside class="dr-left">
+                <button class="dr-playback-btn" id="dr-playback-btn" aria-label="Play back the day">
+                    <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <span id="dr-playback-label">Your day playback</span>
+                </button>
+
+                <div class="dr-meters" id="dr-meters">
+                    <!-- meters injected here -->
+                </div>
+            </aside>
+
+            <!-- Center: body visualization -->
+            <section class="dr-center">
+                <div class="dr-state-label" id="dr-state-label">CALM</div>
+
+                <div class="dr-body-stage" id="dr-body-stage">
+                    <div class="dr-aura aura-secondary" id="dr-aura-secondary"></div>
+                    <div class="dr-aura" id="dr-aura"></div>
+                    <!-- 6 body images preloaded (only one .is-active at a time) -->
+                    <img class="dr-body-img" data-state="calm"           src="States_human_body/calm_state_human_body.png"           alt="">
+                    <img class="dr-body-img" data-state="stressed"       src="States_human_body/stressed_state_human_body.png"       alt="">
+                    <img class="dr-body-img" data-state="anxious"        src="States_human_body/anxious_state_human_body.png"        alt="">
+                    <img class="dr-body-img" data-state="active"         src="States_human_body/active_state_human_body.png"         alt="">
+                    <img class="dr-body-img" data-state="fatigued"       src="States_human_body/fatigued_state_human_body.png"       alt="">
+                    <img class="dr-body-img" data-state="overstimulated" src="States_human_body/overstimulated_state_human_body.png" alt="">
+                    <div class="dr-scanlines" id="dr-scanlines"></div>
+                    <canvas class="dr-particles" id="dr-particles"></canvas>
+                </div>
+
+                <div class="dr-bottom-actions">
+                    <button class="btn-primary-bf" onclick="startBiofeedback()" aria-label="Start biofeedback game">Biofeedback game</button>
+                    <button onclick="dismiss()" aria-label="Dismiss">Not now</button>
+                </div>
+            </section>
+
+            <!-- Right: out banner + scrubber + reports -->
+            <aside class="dr-right">
+                <div class="dr-out-banner">
+                    You have been out for<br><strong id="dr-out-hours">10 hours long!</strong>
+                </div>
+
+                <div class="dr-timeline-row">
+                    <!-- vertical scrubber -->
+                    <div class="dr-scrubber" id="dr-scrubber" role="slider"
+                         aria-valuemin="0" aria-valuemax="100" aria-valuenow="50">
+                        <div class="dr-scrub-track" id="dr-scrub-track">
+                            <!-- tick labels + handle injected here -->
+                            <div class="dr-scrub-handle" id="dr-scrub-handle" tabindex="0"></div>
+                        </div>
+                    </div>
+                    <!-- reports list -->
+                    <div class="dr-reports-wrap" id="dr-reports-wrap">
+                        <div class="dr-reports-list" id="dr-reports-list">
+                            <!-- reports injected here -->
+                        </div>
+                    </div>
+                </div>
+            </aside>
         </div>
 
         <!-- Scene 2: Biofeedback Challenge -->
@@ -1098,8 +1723,8 @@
             gsap.to('#demo-chip', { opacity: 1, duration: 0.4 });
             biosignalSource.setMockProfile('success');
 
-            const s1 = document.getElementById('scene-review');
-            if (parseFloat(gsap.getProperty(s1, 'opacity')) > 0.1) {
+            const dr = document.getElementById('scene-day-recap');
+            if (parseFloat(gsap.getProperty(dr, 'opacity')) > 0.1) {
                 startBiofeedback();
             }
         });
@@ -1662,6 +2287,826 @@
             }, 1000);
         }
 
+        // ─── Day Recap Engine ──────────────────────────────────────────
+        const dayRecap = (() => {
+            // ── State palette (per BioMirror visualization guide) ──────
+            const STATES = {
+                // tint = RGB for glow/aura; bg = active card gradient matching demo colors
+                calm:           { tint:'74,200,255',  ambient:'rgba(74,200,255,0.10)',  auraBlur:32, auraScale:1.00, scanlines:false, particles:false, label:'CALM',
+                                  bg:'linear-gradient(135deg,rgba(35,155,185,0.92),rgba(20,100,145,0.82))' },
+                stressed:       { tint:'255,100,60',  ambient:'rgba(255,90,60,0.12)',   auraBlur:22, auraScale:0.92, scanlines:true,  particles:false, label:'STRESSED',
+                                  bg:'linear-gradient(135deg,rgba(210,75,40,0.92),rgba(170,45,20,0.82))' },
+                anxious:        { tint:'170,120,255', ambient:'rgba(150,110,255,0.11)', auraBlur:18, auraScale:0.88, scanlines:false, particles:false, label:'ANXIOUS',
+                                  bg:'linear-gradient(135deg,rgba(120,70,210,0.92),rgba(80,40,170,0.82))' },
+                active:         { tint:'80,210,255',  ambient:'rgba(90,220,255,0.13)',  auraBlur:38, auraScale:1.10, scanlines:false, particles:true,  label:'ACTIVE',
+                                  bg:'linear-gradient(135deg,rgba(30,180,220,0.92),rgba(15,130,190,0.82))' },
+                fatigued:       { tint:'110,140,180', ambient:'rgba(100,130,170,0.08)', auraBlur:44, auraScale:0.95, scanlines:false, particles:false, label:'FATIGUED',
+                                  bg:'linear-gradient(135deg,rgba(60,80,120,0.88),rgba(40,55,95,0.80))' },
+                overstimulated: { tint:'255,80,200',  ambient:'rgba(255,90,200,0.14)',  auraBlur:26, auraScale:1.05, scanlines:true,  particles:true,  label:'OVERSTIMULATED',
+                                  bg:'linear-gradient(135deg,rgba(180,40,160,0.92),rgba(130,20,120,0.82))' },
+            };
+
+            // ── Mocked day data: 30-min slots from 08:00 → 18:00 ───────
+            // Each slot has: time, state, headline + question + mockAnswer.
+            const REPORTS = [
+                { t: '08:00', state: 'calm',           text: 'Slow morning. Steady heart, steady breath.',                question: 'What set the tone today?',          mockAnswer: 'The quiet before anyone else woke up.' },
+                { t: '08:30', state: 'calm',           text: 'Coffee + sunlight. Body relaxed, attention soft.',          question: 'What were you sensing then?',        mockAnswer: 'Warm mug, light through the curtains.' },
+                { t: '09:00', state: 'active',         text: 'Walking. Energy moving outward, posture open.',             question: 'Where were you walking to?',         mockAnswer: 'Just around the block, no destination.' },
+                { t: '09:30', state: 'active',         text: 'Strong activity burst. Heart up, system engaged.',          question: 'What had you fired up?',             mockAnswer: 'A problem I had been avoiding finally clicked.' },
+                { t: '10:00', state: 'calm',           text: 'Settled into focus. Low arousal, clear mind.',              question: 'What were you working on?',          mockAnswer: 'Reading through old notes, making sense of things.' },
+                { t: '10:30', state: 'anxious',        text: 'Tight chest, restless hands. Body says: too much.',         question: 'What was on your mind?',             mockAnswer: 'Too many tabs open, mentally and literally.' },
+                { t: '11:00', state: 'stressed',       text: 'Stress spike. Heart racing, breath shallow.',               question: 'What happened then, friend?',        mockAnswer: 'An unexpected message changed my plans.' },
+                { t: '11:30', state: 'stressed',       text: "Still elevated. The wave hasn't quite passed.",             question: 'Did something escalate?',            mockAnswer: 'I kept replaying the conversation.' },
+                { t: '12:00', state: 'calm',           text: 'You came back to calm. Body is reorganising.',              question: 'What helped you reset?',             mockAnswer: 'Stepping outside for five minutes.' },
+                { t: '12:30', state: 'active',         text: 'Lunch walk maybe — limbs warm, chest open.',                question: 'Were you moving around?',            mockAnswer: 'Yes, walked to the shop and back.' },
+                { t: '13:00', state: 'stressed',       text: 'Surge in stress signals. Inner pressure rose.',             question: 'What happened, friend?',             mockAnswer: 'A deadline crept up on me.' },
+                { t: '13:30', state: 'overstimulated', text: 'Too many inputs at once. The system felt overloaded.',      question: 'What was around you then?',          mockAnswer: 'Noise, notifications, someone talking nearby.' },
+                { t: '14:00', state: 'anxious',        text: 'Stillness on the outside, vibration on the inside.',        question: 'What were you sitting with?',        mockAnswer: 'Uncertainty about a decision I had not made.' },
+                { t: '14:30', state: 'calm',           text: 'A breath of relief. Aura widened.',                         question: 'How did you let go?',                mockAnswer: 'I wrote it down and closed the notebook.' },
+                { t: '15:00', state: 'active',         text: 'Movement again. Body wanted to discharge.',                  question: 'What got you up?',                   mockAnswer: 'Restlessness — I needed to move.' },
+                { t: '15:30', state: 'fatigued',       text: 'Energy dipping. Posture softer, glow lower.',               question: 'Did you skip a meal?',               mockAnswer: 'I had a small lunch but nothing since.' },
+                { t: '16:00', state: 'fatigued',       text: 'Heaviness in chest and shoulders.',                         question: 'When did you last rest?',            mockAnswer: 'Properly? Probably the weekend.' },
+                { t: '16:30', state: 'calm',           text: 'Quiet recovery. Breath slowed naturally.',                  question: 'What were you doing?',               mockAnswer: 'Sitting still, just watching the light change.' },
+                { t: '17:00', state: 'calm',           text: 'You finished the day softer than you started.',             question: 'What are you carrying home?',        mockAnswer: 'A small sense of relief and some leftover tension.' },
+                { t: '17:30', state: 'fatigued',       text: 'Body asking for rest. Glow dim, motion slow.',              question: 'How tired do you feel?',             mockAnswer: 'More than I expected, honestly.' },
+                { t: '18:00', state: 'calm',           text: "Day's end. The system is winding down.",                    question: 'Anything you want to remember?',     mockAnswer: 'That the hard part passed and I was okay.' },
+            ];
+
+            // ── Computed meter summaries (from data, with a calm bias) ─
+            const METERS = [
+                { id: 'cardio',   title: 'Cardiovascular Load', value: 50, ringPct: 0.50, color: '#FF6B61', evalText: 'Normal Load',  vsWeek: '+13% vs week' },
+                { id: 'stress',   title: 'Stress & Arousal',    value: 23, ringPct: 0.23, color: '#FFB75A', evalText: 'Low Stress',   vsWeek: '-42% vs week' },
+                { id: 'activity', title: 'Activity level',      value: 23, ringPct: 0.23, color: '#7FE8FF', evalText: 'Low activity', vsWeek: '-70% vs week' },
+            ];
+
+            // ── DOM refs ───────────────────────────────────────────────
+            const els = {};
+            let _activeIdx = -1;
+            let _scrubbing = false;
+            let _trackHeight = 0;
+            let _playbackTween = null;
+            let _bodyImgs = {};
+            let _particleCtx = null;
+            let _particles = [];
+            let _particleRAF = null;
+            // Custom vertical-drag overscroll bounce (port of overscroll-decor)
+            const OVERSCROLL_DRAG_RATIO_FWD = 0.32;  // dampen finger drag past edges
+            const OVERSCROLL_BOUNCE_DURATION = 0.6;
+            let _listOffset = 0;          // current y offset of reports list (visual)
+            let _reportSpacing = 0;       // px between consecutive report centres
+            let _listBaseTop = 0;         // top: 50% baseline, we then translateY(-active*spacing + overscroll)
+            let _overscroll = 0;          // signed overshoot when dragging past first/last
+            let _overscrollTween = null;
+
+            function _resolveEls() {
+                els.scene        = document.getElementById('scene-day-recap');
+                els.metersWrap   = document.getElementById('dr-meters');
+                els.bodyStage    = document.getElementById('dr-body-stage');
+                els.aura         = document.getElementById('dr-aura');
+                els.auraSec      = document.getElementById('dr-aura-secondary');
+                els.scanlines    = document.getElementById('dr-scanlines');
+                els.particles    = document.getElementById('dr-particles');
+                els.stateLabel   = document.getElementById('dr-state-label');
+                els.scrubber     = document.getElementById('dr-scrubber');
+                els.scrubTrack   = document.getElementById('dr-scrub-track');
+                els.scrubHandle  = document.getElementById('dr-scrub-handle');
+                els.reportsWrap  = document.getElementById('dr-reports-wrap');
+                els.reportsList  = document.getElementById('dr-reports-list');
+                els.playbackBtn  = document.getElementById('dr-playback-btn');
+                els.playbackLbl  = document.getElementById('dr-playback-label');
+                els.outHours     = document.getElementById('dr-out-hours');
+                els.bodyImgs     = els.bodyStage.querySelectorAll('.dr-body-img');
+                _bodyImgs = {};
+                els.bodyImgs.forEach(img => { _bodyImgs[img.dataset.state] = img; });
+            }
+
+            // ── Render meters — pill label + ring + eval text below ────
+            function _renderMeters() {
+                els.metersWrap.innerHTML = METERS.map(m => {
+                    const C = 2 * Math.PI * 21;
+                    const off = C * (1 - m.ringPct);
+                    return `
+                    <div class="dr-meter">
+                        <div class="dr-meter-row">
+                            <span class="dr-meter-pill">${m.title}</span>
+                            <div class="dr-meter-ring" style="margin-left:auto">
+                                <svg viewBox="0 0 52 52">
+                                    <circle class="ring-track" cx="26" cy="26" r="21"></circle>
+                                    <circle class="ring-fill" cx="26" cy="26" r="21"
+                                            stroke="${m.color}"
+                                            stroke-dasharray="${C}"
+                                            stroke-dashoffset="${C}"
+                                            data-target-offset="${off}"></circle>
+                                </svg>
+                                <div class="ring-num" data-target="${m.value}">0</div>
+                            </div>
+                        </div>
+                        <div class="dr-meter-eval" style="color:${m.color}">${m.evalText}</div>
+                        <div class="dr-meter-vs">${m.vsWeek}</div>
+                    </div>`;
+                }).join('');
+            }
+
+            function _animateMeters() {
+                els.metersWrap.querySelectorAll('.dr-meter-ring').forEach(r => {
+                    const fill = r.querySelector('.ring-fill');
+                    const num  = r.querySelector('.ring-num');
+                    const offT = parseFloat(fill.getAttribute('data-target-offset'));
+                    const target = parseFloat(num.getAttribute('data-target'));
+                    gsap.to(fill, { strokeDashoffset: offT, duration: 1.4, ease: 'power3.out' });
+                    const counter = { v: 0 };
+                    gsap.to(counter, { v: target, duration: 1.4, ease: 'power3.out',
+                        onUpdate: () => { num.textContent = Math.round(counter.v); } });
+                });
+            }
+
+            // ── Render scrubber ticks ───────────────────────────────────
+            function _renderScrubber() {
+                // major ticks at 8, 10, 12, 14, 16, 18
+                const majors = ['8:00', '10:00', '12:00', '14:00', '16:00', '18:00'];
+                const startMin = 8 * 60, endMin = 18 * 60;
+                const span = endMin - startMin;
+                els.scrubTrack.querySelectorAll('.dr-scrub-tick').forEach(n => n.remove());
+                majors.forEach(label => {
+                    const [h, m] = label.split(':').map(Number);
+                    const pct = ((h * 60 + m) - startMin) / span;
+                    const t = document.createElement('div');
+                    t.className = 'dr-scrub-tick major';
+                    t.textContent = label;
+                    t.style.top = (pct * 100) + '%';
+                    els.scrubTrack.appendChild(t);
+                });
+            }
+
+            // ── Reply storage ───────────────────────────────────────────
+            const STORAGE_KEY = 'dayRecap.replies.v1';
+            let _replies = {};
+            function _loadReplies() {
+                try { _replies = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { _replies = {}; }
+            }
+            function _saveReplies() {
+                try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_replies)); } catch(e) {}
+            }
+            function _setReply(time, text) {
+                const t = (text || '').trim();
+                if (t) _replies[time] = t; else delete _replies[time];
+                _saveReplies();
+            }
+
+            // ── Mock voice ──────────────────────────────────────────────
+            function _mockVoice(btn, input, answer) {
+                btn.classList.add('listening');
+                gsap.to(btn, { scale: 1.2, duration: 0.12, yoyo: true, repeat: 3 });
+                setTimeout(() => {
+                    btn.classList.remove('listening');
+                    input.value = '';
+                    let i = 0;
+                    const tick = setInterval(() => {
+                        input.value += answer[i++];
+                        input.style.height = 'auto';
+                        input.style.height = input.scrollHeight + 'px';
+                        if (i >= answer.length) { clearInterval(tick); _commitReply(input); }
+                    }, 40);
+                }, 800);
+            }
+
+            // ── Commit reply ────────────────────────────────────────────
+            function _commitReply(input) {
+                const card = input.closest('.dr-report');
+                if (!card) return;
+                const time = REPORTS[+card.dataset.idx].t;
+                _setReply(time, input.value);
+                if (input.value.trim()) {
+                    card.classList.add('is-answered');
+                    input.classList.add('has-saved');
+                } else {
+                    card.classList.remove('is-answered');
+                    input.classList.remove('has-saved');
+                }
+            }
+
+            // ── Bind reply interactions ─────────────────────────────────
+            function _bindReplies() {
+                els.reportsList.addEventListener('input', e => {
+                    if (!e.target.matches('.r-reply-input')) return;
+                    e.target.style.height = 'auto';
+                    e.target.style.height = e.target.scrollHeight + 'px';
+                });
+                els.reportsList.addEventListener('keydown', e => {
+                    if (!e.target.matches('.r-reply-input')) return;
+                    e.stopPropagation();
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _commitReply(e.target); e.target.blur(); }
+                });
+                els.reportsList.addEventListener('focusin', e => {
+                    if (!e.target.matches('.r-reply-input')) return;
+                    if (_playbackTween) { _playbackTween.kill(); _playbackTween = null;
+                        els.playbackBtn.classList.remove('playing'); els.playbackLbl.textContent = 'Your day playback'; }
+                });
+                els.reportsList.addEventListener('blur', e => {
+                    if (e.target.matches('.r-reply-input')) _commitReply(e.target);
+                }, true);
+                els.reportsList.addEventListener('click', e => {
+                    const micBtn = e.target.closest('.r-mic-btn');
+                    if (!micBtn) return;
+                    const card = micBtn.closest('.dr-report');
+                    const idx = +card.dataset.idx;
+                    const input = card.querySelector('.r-reply-input');
+                    _mockVoice(micBtn, input, REPORTS[idx].mockAnswer);
+                });
+            }
+
+            // ── Render reports ──────────────────────────────────────────
+            function _renderReports() {
+                els.reportsList.innerHTML = REPORTS.map((r, i) => {
+                    const st = STATES[r.state];
+                    // Escape CSS values for inline style
+                    const bg   = st.bg.replace(/"/g, "'");
+                    const tint = st.tint;
+                    return `
+                    <article class="dr-report" data-idx="${i}"
+                             style="--r-tint:${tint}; --r-bg:${bg}">
+                        <div class="r-time">${r.t}</div>
+                        <div class="r-text">${r.text}</div>
+                        <div class="r-question">${r.question}</div>
+                        <div class="r-reply">
+                            <div class="r-reply-row">
+                                <textarea class="r-reply-input" rows="1"
+                                          placeholder="Type or speak your reflection…"
+                                          aria-label="Your reply"></textarea>
+                                <button class="r-mic-btn" aria-label="Dictate reply">
+                                    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="r-answered-dot" aria-label="Answered"></div>
+                    </article>`;
+                }).join('');
+            }
+
+            // ── Compute report spacing after layout ─────────────────────
+            function _measureReportLayout() {
+                const items = [...els.reportsList.querySelectorAll('.dr-report')];
+                if (items.length < 3) { _reportSpacing = 92; return; }
+                // Measure two consecutive NON-active items to get uniform spacing
+                // (active item is taller due to question expanding)
+                let measured = false;
+                for (let k = 0; k < items.length - 1; k++) {
+                    if (items[k].classList.contains('is-active') ||
+                        items[k+1].classList.contains('is-active')) continue;
+                    const a = items[k].getBoundingClientRect();
+                    const b = items[k+1].getBoundingClientRect();
+                    const spacing = (b.top + b.height / 2) - (a.top + a.height / 2);
+                    if (spacing > 10) { _reportSpacing = spacing; measured = true; break; }
+                }
+                if (!measured) {
+                    // All items are active or layout not ready — retry
+                    requestAnimationFrame(_measureReportLayout);
+                }
+            }
+
+            // ── Update body visualization per state ─────────────────────
+            let _currentState = null;
+            function _setState(state) {
+                if (state === _currentState) return;
+                _currentState = state;
+                const cfg = STATES[state];
+                if (!cfg) return;
+
+                // Body image swap (cross-fade) — only the active image holds
+                // its state-* animation class so no two animations stack.
+                Object.entries(_bodyImgs).forEach(([s, img]) => {
+                    const isActive = s === state;
+                    img.classList.toggle('is-active', isActive);
+                    ['calm','stressed','anxious','active','fatigued','overstimulated']
+                        .forEach(name => img.classList.toggle('state-' + name, isActive && s === name));
+                });
+
+                // State label
+                els.stateLabel.textContent = cfg.label;
+                els.stateLabel.style.color = `rgba(${cfg.tint}, 0.95)`;
+                els.stateLabel.style.borderColor = `rgba(${cfg.tint}, 0.55)`;
+                els.stateLabel.style.boxShadow = `0 0 22px rgba(${cfg.tint}, 0.35)`;
+
+                // Aura
+                els.bodyStage.style.setProperty('--aura-color', `rgba(${cfg.tint}, 0.45)`);
+                els.bodyStage.style.setProperty('--aura-blur', cfg.auraBlur + 'px');
+                els.bodyStage.style.setProperty('--aura-scale', cfg.auraScale);
+                els.bodyStage.style.setProperty('--aura-opacity', '0.85');
+                els.bodyStage.style.setProperty('--body-glow', `rgba(${cfg.tint}, 0.7)`);
+
+                // Scanlines
+                els.scanlines.classList.toggle('show', cfg.scanlines);
+
+                // Particles
+                els.particles.classList.toggle('show', cfg.particles);
+                if (cfg.particles) _startParticles(cfg.tint);
+                else _stopParticles();
+
+                // Ambient room color
+                setAmbient(cfg.ambient);
+
+                // Aura breathing — re-start a quick GSAP loop so it visibly responds
+                gsap.killTweensOf(els.aura);
+                if (state === 'calm') {
+                    gsap.to(els.aura, { opacity: 0.95, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+                } else if (state === 'stressed' || state === 'overstimulated') {
+                    gsap.to(els.aura, { opacity: 0.7, duration: 0.18, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+                } else if (state === 'anxious') {
+                    gsap.to(els.aura, { opacity: 0.85, duration: 0.4, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+                } else if (state === 'fatigued') {
+                    gsap.to(els.aura, { opacity: 0.55, duration: 4.5, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+                } else if (state === 'active') {
+                    gsap.to(els.aura, { opacity: 0.95, duration: 1.0, ease: 'sine.inOut', yoyo: true, repeat: -1 });
+                }
+            }
+
+            // ── Particle layer ──────────────────────────────────────────
+            function _initParticleCanvas() {
+                const c = els.particles;
+                const r = c.getBoundingClientRect();
+                c.width = Math.max(1, Math.round(r.width));
+                c.height = Math.max(1, Math.round(r.height));
+                _particleCtx = c.getContext('2d');
+            }
+            function _startParticles(tint) {
+                if (!_particleCtx) _initParticleCanvas();
+                _particles = [];
+                const r = els.particles.getBoundingClientRect();
+                const N = 26;
+                for (let i = 0; i < N; i++) {
+                    _particles.push({
+                        x: r.width / 2 + (Math.random() - 0.5) * r.width * 0.5,
+                        y: r.height * (0.4 + Math.random() * 0.5),
+                        vx: (Math.random() - 0.5) * 0.8,
+                        vy: -0.4 - Math.random() * 1.2,
+                        r: 1 + Math.random() * 1.8,
+                        a: 0.4 + Math.random() * 0.5,
+                        tint
+                    });
+                }
+                if (_particleRAF) cancelAnimationFrame(_particleRAF);
+                const loop = () => {
+                    if (!_particleCtx) return;
+                    const c = els.particles;
+                    _particleCtx.clearRect(0, 0, c.width, c.height);
+                    for (const p of _particles) {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.a *= 0.992;
+                        if (p.a < 0.05 || p.y < -10) {
+                            p.x = c.width / 2 + (Math.random() - 0.5) * c.width * 0.5;
+                            p.y = c.height * (0.6 + Math.random() * 0.3);
+                            p.a = 0.4 + Math.random() * 0.5;
+                            p.vy = -0.4 - Math.random() * 1.2;
+                        }
+                        _particleCtx.beginPath();
+                        _particleCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                        _particleCtx.fillStyle = `rgba(${p.tint}, ${p.a})`;
+                        _particleCtx.fill();
+                    }
+                    _particleRAF = requestAnimationFrame(loop);
+                };
+                _particleRAF = requestAnimationFrame(loop);
+            }
+            function _stopParticles() {
+                if (_particleRAF) { cancelAnimationFrame(_particleRAF); _particleRAF = null; }
+                if (_particleCtx) _particleCtx.clearRect(0, 0, els.particles.width, els.particles.height);
+            }
+
+            // ── Continuous float position (drives both handle + list) ───
+            // _idxFloat is the smooth value; _activeIdx is the snapped int.
+            let _idxFloat = 0;
+
+            function _applyFromFloat(idxFloat) {
+                _idxFloat = Math.max(0, Math.min(REPORTS.length - 1, idxFloat));
+                const snapped = Math.round(_idxFloat);
+
+                // Continuous list transform.
+                // list top is at 50% of the viewport (via CSS top:50%)
+                // We center the active item by moving the list UP by its relative center point
+                const items = els.reportsList.querySelectorAll('.dr-report');
+                const targetEl = items[snapped];
+                if (targetEl) {
+                    const itemCenter = targetEl.offsetTop + targetEl.offsetHeight / 2;
+                    const offset = -itemCenter + _overscroll;
+                    els.reportsList.style.transform = `translateY(${offset}px)`;
+                }
+
+                // Continuous handle position
+                if (_trackHeight > 0) {
+                    const pct = _idxFloat / Math.max(1, REPORTS.length - 1);
+                    els.scrubHandle.style.top = (pct * 100) + '%';
+                }
+
+                // Snap to integer for state-bound updates
+                if (snapped !== _activeIdx) {
+                    _activeIdx = snapped;
+                    const r = REPORTS[snapped];
+                    const items = els.reportsList.querySelectorAll('.dr-report');
+                    items.forEach((el, i) => {
+                        const wasActive = el.classList.contains('is-active');
+                        const isNowActive = i === snapped;
+                        el.classList.toggle('is-active', isNowActive);
+                        el.classList.toggle('is-near', Math.abs(i - snapped) === 1);
+                        
+                        // Standout "pop" animation when report becomes active
+                        if (isNowActive && !wasActive) {
+                            gsap.fromTo(el, { scale: 0.98 }, { scale: 1.04, duration: 0.5, ease: 'elastic.out(1, 0.6)' });
+                        }
+                    });
+                    _setState(r.state);
+                }
+            }
+
+            // Set by integer index (used by clicks, keyboard, wheel, drag end)
+            function _setActiveIdx(idx, opts = {}) {
+                idx = Math.max(0, Math.min(REPORTS.length - 1, Math.round(idx)));
+                _applyFromFloat(idx);
+            }
+
+            function _applyListTransform() { _applyFromFloat(_idxFloat); }
+
+            function _idxFromTrackY(y) {
+                const pct = Math.max(0, Math.min(1, y / _trackHeight));
+                return pct * (REPORTS.length - 1);
+            }
+
+            // ── Scrubber drag (handle + track click) ────────────────────
+            function _bindScrubber() {
+                const track = els.scrubTrack;
+                const handle = els.scrubHandle;
+
+                const measure = () => {
+                    const r = track.getBoundingClientRect();
+                    _trackHeight = r.height;
+                    _applyFromFloat(_idxFloat);
+                };
+                measure();
+                window.addEventListener('resize', measure);
+
+                // Re-measure after a delay in case layout shifts
+                setTimeout(measure, 500);
+
+                let dragging = false;
+
+                const onPointerDown = (e) => {
+                    e.preventDefault();
+                    dragging = true;
+                    _scrubbing = true;
+                    handle.classList.add('dragging');
+                    handle.setPointerCapture && handle.setPointerCapture(e.pointerId);
+                    if (_playbackTween) { _playbackTween.kill(); _playbackTween = null; els.playbackBtn.classList.remove('playing'); els.playbackLbl.textContent = 'Your day playback'; }
+                };
+                const onPointerMove = (e) => {
+                    if (!dragging) return;
+                    const r = track.getBoundingClientRect();
+                    const y = e.clientY - r.top;
+                    const idxF = _idxFromTrackY(y);
+                    _applyFromFloat(idxF);
+                };
+                const onPointerUp = () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    _scrubbing = false;
+                    handle.classList.remove('dragging');
+                    // Smooth snap-to-integer
+                    const target = { v: _idxFloat };
+                    gsap.to(target, {
+                        v: Math.round(_idxFloat),
+                        duration: 0.35, ease: 'power3.out',
+                        onUpdate: () => _applyFromFloat(target.v)
+                    });
+                };
+
+                handle.addEventListener('pointerdown', onPointerDown);
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
+
+                // Click on track to jump
+                track.addEventListener('pointerdown', (e) => {
+                    if (e.target === handle) return;
+                    const r = track.getBoundingClientRect();
+                    const y = e.clientY - r.top;
+                    const idx = Math.round(_idxFromTrackY(y));
+                    _setActiveIdx(idx);
+                });
+
+                // Keyboard a11y
+                handle.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowUp')   { _setActiveIdx(_activeIdx - 1); e.preventDefault(); }
+                    if (e.key === 'ArrowDown') { _setActiveIdx(_activeIdx + 1); e.preventDefault(); }
+                });
+            }
+
+            // ── Custom vertical-drag overscroll for reports list ────────
+            // Port of overscroll-decor principle: dampened drag past edges,
+            // bounce back on release. Drives _activeIdx live as user drags.
+            function _bindReportsDrag() {
+                const wrap = els.reportsWrap;
+                let dragging = false;
+                let startY = 0;
+                let startOffsetIdx = 0;   // float idx at drag start
+                let lastIdxFloat = 0;
+
+                const onDown = (e) => {
+                    if (e.target.closest('.dr-scrubber')) return;
+                    if (e.target.closest('.r-reply')) return;
+                    dragging = true;
+                    els.reportsList.classList.add('is-dragging');
+                    startY = e.clientY;
+                    startOffsetIdx = _activeIdx;
+                    lastIdxFloat = _activeIdx;
+                    if (_overscrollTween) { _overscrollTween.kill(); _overscrollTween = null; }
+                    if (_playbackTween) { _playbackTween.kill(); _playbackTween = null; els.playbackBtn.classList.remove('playing'); els.playbackLbl.textContent = 'Your day playback'; }
+                    wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId);
+                };
+                const onMove = (e) => {
+                    if (!dragging || _reportSpacing < 1) return;
+                    const dy = e.clientY - startY;
+                    // dragging up (dy<0) → next reports → idx increases
+                    let idxFloat = startOffsetIdx - dy / _reportSpacing;
+                    let overshoot = 0;
+                    if (idxFloat < 0) {
+                        overshoot = -idxFloat;
+                        idxFloat = 0;
+                    } else if (idxFloat > REPORTS.length - 1) {
+                        overshoot = -(idxFloat - (REPORTS.length - 1));
+                        idxFloat = REPORTS.length - 1;
+                    }
+                    _overscroll = overshoot * _reportSpacing * OVERSCROLL_DRAG_RATIO_FWD;
+                    lastIdxFloat = idxFloat;
+                    _applyFromFloat(idxFloat);
+                };
+                const onUp = (e) => {
+                    if (!dragging) return;
+                    dragging = false;
+                    els.reportsList.classList.remove('is-dragging');
+                    // Bounce back overscroll
+                    if (Math.abs(_overscroll) > 0.1) {
+                        _overscrollTween = gsap.to(
+                            { v: _overscroll },
+                            {
+                                v: 0,
+                                duration: OVERSCROLL_BOUNCE_DURATION,
+                                ease: 'elastic.out(1, 0.55)',
+                                onUpdate: function () {
+                                    _overscroll = this.targets()[0].v;
+                                    _applyListTransform();
+                                }
+                            }
+                        );
+                    }
+                    // Snap to integer
+                    const target = { v: lastIdxFloat };
+                    gsap.to(target, {
+                        v: Math.round(lastIdxFloat),
+                        duration: 0.35, ease: 'power3.out',
+                        onUpdate: () => _applyFromFloat(target.v)
+                    });
+                };
+                wrap.addEventListener('pointerdown', onDown);
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+
+                // Wheel scroll → step through
+                wrap.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const dir = e.deltaY > 0 ? 1 : -1;
+                    _setActiveIdx(_activeIdx + dir);
+                }, { passive: false });
+            }
+
+            // ── Build playback chunk list (group consecutive same-state) ─
+            // Returns [{fromIdx, toIdx, state}] from given startIdx.
+            function _buildChunks(startIdx) {
+                const chunks = [];
+                let i = Math.max(0, Math.round(startIdx));
+                while (i < REPORTS.length) {
+                    const state = REPORTS[i].state;
+                    let j = i;
+                    while (j + 1 < REPORTS.length && REPORTS[j + 1].state === state) j++;
+                    chunks.push({ fromIdx: i, toIdx: j, state });
+                    i = j + 1;
+                }
+                return chunks;
+            }
+
+            // ── Day playback: chunked, 3s per chunk, starts from current pos ─
+            function _togglePlayback() {
+                if (_playbackTween) {
+                    _playbackTween.kill();
+                    _playbackTween = null;
+                    els.playbackBtn.classList.remove('playing');
+                    els.playbackLbl.textContent = 'Your day playback';
+                    return;
+                }
+
+                const SEC_PER_CHUNK = 3;
+                const HOLD_SEC = 0.5;   // pause between chunks
+
+                // Always start playback from the beginning of the day (idx 0)
+                const startIdx = 0;
+                _applyFromFloat(0);
+                const chunks = _buildChunks(0);
+                if (!chunks.length) return;
+
+                els.playbackBtn.classList.add('playing');
+                els.playbackLbl.textContent = 'Pause playback';
+
+                const tl = gsap.timeline({
+                    onComplete: () => {
+                        els.playbackBtn.classList.remove('playing');
+                        els.playbackLbl.textContent = 'Your day playback';
+                        _playbackTween = null;
+                    }
+                });
+                _playbackTween = tl;
+
+                const proxy = { v: 0 };
+
+                chunks.forEach((chunk, ci) => {
+                    // If this chunk is entirely before where we started, skip
+                    if (chunk.toIdx < startIdx) return;
+
+                    // For first chunk: start from current _idxFloat, not chunk.fromIdx
+                    const fromV = ci === 0 ? _idxFloat : chunk.fromIdx;
+
+                    // Only tween if there's distance to cover
+                    const distance = chunk.toIdx - fromV;
+                    const duration = distance < 0.5
+                        ? HOLD_SEC
+                        : SEC_PER_CHUNK * (distance / Math.max(1, chunk.toIdx - chunk.fromIdx));
+
+                    tl.to(proxy, {
+                        v: chunk.toIdx,
+                        duration: Math.max(0.3, duration),
+                        ease: distance < 0.5 ? 'none' : 'power1.inOut',
+                        onUpdate: () => _applyFromFloat(proxy.v)
+                    });
+
+                    // Hold at chunk boundary before jumping to next
+                    if (ci < chunks.length - 1) {
+                        tl.to(proxy, { v: chunk.toIdx, duration: HOLD_SEC, ease: 'none',
+                            onUpdate: () => _applyFromFloat(proxy.v) });
+                        // Snap proxy to next chunk start (instant cut between different states)
+                        const nextChunk = chunks[ci + 1];
+                        if (nextChunk) {
+                            tl.call(() => {
+                                proxy.v = nextChunk.fromIdx;
+                                _applyFromFloat(proxy.v);
+                            });
+                        }
+                    }
+                });
+            }
+
+            // ── Public ──────────────────────────────────────────────────
+            return {
+                init() {
+                    _resolveEls();
+                    _loadReplies();
+                    _renderMeters();
+                    _renderScrubber();
+                    _renderReports();
+                    // Restore saved replies onto rendered cards
+                    els.reportsList.querySelectorAll('.dr-report').forEach((card, i) => {
+                        const time = REPORTS[i].t;
+                        if (_replies[time]) {
+                            const input = card.querySelector('.r-reply-input');
+                            input.value = _replies[time];
+                            input.classList.add('has-saved');
+                            card.classList.add('is-answered');
+                        }
+                    });
+                    _bindScrubber();
+                    _bindReportsDrag();
+                    _bindReplies();
+                    els.playbackBtn.addEventListener('click', _togglePlayback);
+
+                    // Click on report to jump to it (ignore clicks inside reply block)
+                    els.reportsList.addEventListener('click', (e) => {
+                        if (e.target.closest('.r-reply')) return;
+                        const card = e.target.closest('.dr-report');
+                        if (card) {
+                            const idx = parseInt(card.dataset.idx);
+                            if (!isNaN(idx)) _setActiveIdx(idx);
+                        }
+                    });
+
+                    // Double-rAF: first rAF queues after current paint,
+                    // second fires after the next paint when layout is stable.
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        _initParticleCanvas();
+                        // Quick first measure for rough layout
+                        _measureReportLayout();
+                        const noonIdx = REPORTS.findIndex(r => r.t === '12:00');
+                        _setActiveIdx(noonIdx >= 0 ? noonIdx : 0);
+                        
+                        // Re-measure after everything is rendered and classes applied
+                        setTimeout(() => {
+                            _measureReportLayout();
+                            _applyFromFloat(_idxFloat);
+                        }, 200);
+                        setTimeout(() => {
+                            _measureReportLayout();
+                            _applyFromFloat(_idxFloat);
+                        }, 800); // safety catch after all expansions finish
+                    }));
+                    window.addEventListener('resize', () => {
+                        _measureReportLayout();
+                        _initParticleCanvas();
+                        _applyListTransform();
+                    });
+                },
+                play() {
+                    const sceneEl = els.scene;
+                    sceneEl.classList.add('active');
+                    document.body.classList.add('in-day-recap');
+                    // Hide global avatar canvas — we use the body PNGs instead
+                    gsap.set('#avatarCanvas', { opacity: 0 });
+                    const tl = gsap.timeline();
+                    tl.to(sceneEl, { opacity: 1, duration: 0.9, ease: 'emoMirror' })
+                      .from('.dr-header', { y: -16, opacity: 0, duration: 0.8 }, '-=0.5')
+                      .from('.dr-meter',  { x: -20, opacity: 0, stagger: 0.12, duration: 0.6 }, '-=0.4')
+                      .from('.dr-out-banner', { y: -14, opacity: 0, duration: 0.6 }, '-=0.6')
+                      .add(_animateMeters, '-=0.4')
+                      .from('.dr-bottom-actions', { y: 12, opacity: 0, duration: 0.6 }, '-=0.4');
+                },
+                hide(onDone) {
+                    if (_playbackTween) { _playbackTween.kill(); _playbackTween = null; }
+                    gsap.to(els.scene, {
+                        opacity: 0, duration: 0.7, ease: 'power2.in',
+                        onComplete: () => {
+                            els.scene.classList.remove('active');
+                            document.body.classList.remove('in-day-recap');
+                            if (onDone) onDone();
+                        }
+                    });
+                }
+            };
+        })();
+
+        // Override scene transitions so old #scene-review is bypassed and
+        // the day-recap is the "home" scene the user comes back to.
+        startBiofeedback = function () {
+            const dr = document.getElementById('scene-day-recap');
+            const s2 = document.getElementById('scene-biofeedback');
+            s2.classList.add('active');
+            setAmbient('rgba(74,200,255,0.08)');
+            if (alarmPulse) alarmPulse.kill();
+            // Bring main avatar back for biofeedback
+            ['#avatar-figure', '.glitch-r', '.glitch-b'].forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => { el.style.display = ''; });
+            });
+            gsap.set(['#avatar-figure', '.glitch-r', '.glitch-b'], { clearProps: 'opacity' });
+            gsap.to('#avatarCanvas', { opacity: 1, duration: 0.6 });
+            gsap.to(avatarState, { glitch: 0, auraBlur: 20, duration: 1.0 });
+            const tl = gsap.timeline();
+            tl.to(dr, { opacity: 0, y: -8, duration: 0.9, ease: 'power2.in',
+                onComplete: () => { dr.classList.remove('active'); document.body.classList.remove('in-day-recap'); }})
+              .to(s2, { opacity: 1, duration: 1.4, ease: 'emoMirror' }, '-=0.2')
+              .call(initChallenge);
+        };
+
+        stopChallenge = function () {
+            challengeEngine.stop();
+            const s2 = document.getElementById('scene-biofeedback');
+            const dr = document.getElementById('scene-day-recap');
+            dr.classList.add('active');
+            document.body.classList.add('in-day-recap');
+            // Re-hide main avatar — day recap uses its own body imgs
+            ['#avatar-figure', '.glitch-r', '.glitch-b'].forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => { el.style.display = 'none'; });
+            });
+            gsap.to('#avatarCanvas', { opacity: 0, duration: 0.6 });
+            gsap.timeline()
+                .to(s2, { opacity: 0, duration: 0.8, ease: 'power2.in',
+                          onComplete: () => s2.classList.remove('active') })
+                .to(dr, { opacity: 1, duration: 1.0, ease: 'emoMirror' }, '-=0.3');
+        };
+
+        returnToReview = function () {
+            const s3 = document.getElementById('scene-bloom');
+            const dr = document.getElementById('scene-day-recap');
+            dr.classList.add('active');
+            document.body.classList.add('in-day-recap');
+            ['#avatar-figure', '.glitch-r', '.glitch-b'].forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => { el.style.display = 'none'; });
+            });
+            gsap.to('#avatarCanvas', { opacity: 0, duration: 0.6 });
+            gsap.set(['#bloom-headline', '#bloom-sub', '#bloom-return-btn'], { opacity: 0 });
+            gsap.timeline()
+                .to(s3, { opacity: 0, duration: 0.8, ease: 'power2.in',
+                          onComplete: () => s3.classList.remove('active') })
+                .to(dr, { opacity: 1, duration: 1.0, ease: 'emoMirror' }, '-=0.3');
+        };
+
+        dismiss = function () {
+            const dr = document.getElementById('scene-day-recap');
+            gsap.to(dr, { opacity: 0, duration: 0.8, ease: 'power2.in',
+                onComplete: () => { dr.classList.remove('active'); document.body.classList.remove('in-day-recap'); }});
+        };
+
         // ─── Boot ──────────────────────────────────────────────────────
         // Initial avatar state: STORM — holographic wireframe look from the start
         Object.assign(avatarState, { r: 74, g: 180, b: 255, hue: -140, brightness: 0.8, fillAlpha: 0.9, strokeAlpha: 0, glitch: 10, auraBlur: 40 });
@@ -1669,7 +3114,8 @@
 
         window.addEventListener('DOMContentLoaded', async () => {
             await loadReview();
-            playAwakening();
+            dayRecap.init();
+            dayRecap.play();
         });
     </script>
 </body>
