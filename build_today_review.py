@@ -49,9 +49,6 @@ def build_today():
     
     review_json = build_day_review("2026-04-25", "demo_user", today_epochs, user_baseline, recent_activities)
     
-    # Hardcode summary tagline to match mockup exactly
-    review_json["summary"]["tagline"] = "A heavier day than usual."
-    
     with open("review.json", "w") as f:
         json.dump(review_json, f, indent=2)
         
