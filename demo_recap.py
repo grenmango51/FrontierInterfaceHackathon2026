@@ -2,6 +2,8 @@ import sys
 from emomirror.ml_engine import StateInferenceEngine
 from emomirror.insights import generate_insight
 
+# DEPRECATED: Please use build_today_review.py for Daily Review v2
+
 def demo_recap(filepath):
     print("========================================")
     print("EMO-MIRROR: DAY RECAP DEMO")

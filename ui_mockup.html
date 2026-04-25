@@ -3,21 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EmoMirror UI Mockup</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600&display=swap');
+    <title>EmoMirror</title>
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+    <!-- Preload primary font weight -->
+    <link rel="preload" href="https://fonts.gstatic.com/s/outfit/v11/QGYvz_MVcBeNP4NJtEtq.woff2" as="font" type="font/woff2" crossorigin>
+
+    <!-- Typography: Outfit (primary) + Fraunces (editorial accent) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600&family=Fraunces:ital,wght@1,300&display=swap" rel="stylesheet">
+
+    <!-- GSAP 3.12.5 + free plugins -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/CustomEase.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js"></script>
+
+    <style>
+        /* ─── Design Tokens ─────────────────────────────────────────── */
+        :root {
+            /* Color */
+            --bg:               #000000;
+            --fg:               #F5F5F7;
+            --fg-muted:         #8E8E93;
+            --fg-subtle:        #48484A;
+            --glass-bg:         rgba(255,255,255,0.06);
+            --glass-border:     rgba(255,255,255,0.14);
+            --state-storm:      #FF3B30;
+            --state-fatigued:   #7A8599;
+            --state-calming:    #4AC8FF;
+            --state-bloom:      #FFD89E;
+            --accent-ring:      rgba(74,200,255,0.55);
+            --ambient-color:    rgba(255,59,48,0.10);
+
+            /* Spacing (4pt grid) */
+            --sp-1: 0.25rem;
+            --sp-2: 0.5rem;
+            --sp-3: 0.75rem;
+            --sp-4: 1rem;
+            --sp-6: 1.5rem;
+            --sp-8: 2rem;
+            --sp-12: 3rem;
+
+            /* Motion (mirrored as CSS vars; GSAP is the primary consumer) */
+            --dur-fast:  180ms;
+            --dur-med:   420ms;
+            --dur-slow:  1200ms;
+            --dur-scene: 2400ms;
         }
 
+        /* ─── Reset ──────────────────────────────────────────────────── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         body, html {
-            width: 100%;
-            height: 100%;
-            background-color: #000000; /* Pure black for two-way mirror */
-            color: #ffffff;
+            width: 100%; height: 100%;
+            background: var(--bg);
+            color: var(--fg);
             font-family: 'Outfit', sans-serif;
             overflow: hidden;
             display: flex;
@@ -25,134 +65,86 @@
             align-items: center;
         }
 
-        /* The Canvas Avatar */
+        /* ─── Canvas ─────────────────────────────────────────────────── */
         #avatarCanvas {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
+            width: 100%; height: 100%;
             z-index: 0;
-            opacity: 0.8;
-            transition: opacity 2s ease;
         }
 
-        /* Floating UI Overlay */
+        /* ─── Ambient color bleed (between canvas and UI) ────────────── */
+        #ambient-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            background: radial-gradient(ellipse 60% 70% at 50% 45%, var(--ambient-color), transparent 70%);
+            transition: background var(--dur-slow) ease;
+        }
+
+        /* ─── UI Overlay ─────────────────────────────────────────────── */
         #ui-layer {
             position: relative;
             z-index: 10;
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 2rem;
+            padding: var(--sp-8);
             text-align: center;
         }
 
-        .hidden {
-            display: none !important;
+        /* Scenes: hidden via opacity + pointer-events, never display:none */
+        .scene {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: var(--sp-8);
             opacity: 0;
             pointer-events: none;
         }
+        .scene.active { pointer-events: auto; }
 
-        .fade-in {
-            animation: fadeIn 1.5s forwards;
+        #scene-review {
+            justify-content: space-between;
+            padding-top: 6vh;
+            padding-bottom: 6vh;
         }
 
-        .fade-out {
-            animation: fadeOut 1s forwards;
+        body.in-review .anatomy-figure {
+            height: 50vh;
+            opacity: 0.35;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes fadeOut {
-            from { opacity: 1; transform: translateY(0); }
-            to { opacity: 0; transform: translateY(-10px); }
-        }
-
-        /* Typography */
+        /* ─── Typography ─────────────────────────────────────────────── */
         h1 {
             font-weight: 200;
-            font-size: 3.5rem;
+            font-size: clamp(2rem, 5vw, 3.5rem);
             letter-spacing: 0.05em;
-            margin-bottom: 1rem;
-            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+            margin-bottom: var(--sp-4);
+            text-shadow: 0 0 40px rgba(255,255,255,0.2);
         }
 
         h2 {
             font-weight: 400;
-            font-size: 1.5rem;
-            color: #aaaaaa;
-            margin-bottom: 2rem;
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
+            color: var(--fg-muted);
+            margin-bottom: var(--sp-8);
+            font-family: 'Fraunces', serif;
+            font-style: italic;
         }
 
-        .insight-text {
-            font-size: 1.2rem;
-            font-weight: 200;
-            color: #d4d4d4;
-            max-width: 600px;
-            line-height: 1.6;
-            margin-bottom: 3rem;
-            border-left: 2px solid rgba(255,255,255,0.2);
-            padding-left: 1.5rem;
-            text-align: left;
-        }
-
-        /* Modern Glassmorphic Buttons */
-        .btn-group {
-            display: flex;
-            gap: 1.5rem;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 2rem;
-        }
-
-        button {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-            padding: 1rem 2rem;
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.1rem;
-            font-weight: 200;
-            border-radius: 50px;
-            cursor: pointer;
-            backdrop-filter: blur(10px);
-            transition: all 0.4s ease;
-        }
-
-        button:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5), 0 0 15px rgba(255,255,255,0.2);
-        }
-
-        /* Biofeedback UI */
-        .progress-ring {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 500px;
-            height: 500px;
-            border-radius: 50%;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            pointer-events: none;
-            z-index: 1;
-        }
-        
-        /* Timeline Styles */
+        /* ─── Timeline ───────────────────────────────────────────────── */
         .timeline {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-            margin-bottom: 3rem;
+            gap: var(--sp-6);
+            margin-bottom: var(--sp-12);
             max-width: 600px;
             width: 100%;
             text-align: left;
@@ -160,290 +152,846 @@
 
         .timeline-item {
             display: flex;
-            gap: 1rem;
-            opacity: 0;
-            transform: translateX(-20px);
-            animation: slideIn 0.8s forwards;
-        }
-
-        .timeline-item:nth-child(1) { animation-delay: 0.5s; }
-        .timeline-item:nth-child(2) { animation-delay: 1.5s; }
-        .timeline-item:nth-child(3) { animation-delay: 2.5s; }
-
-        @keyframes slideIn {
-            to { opacity: 1; transform: translateX(0); }
+            gap: var(--sp-4);
+            opacity: 0; /* GSAP will reveal */
         }
 
         .time-label {
             font-weight: 600;
-            color: #888;
+            font-size: clamp(0.8rem, 1.5vw, 0.95rem);
+            color: #A8A8AD; /* bumped from #888 for ≥4.5:1 contrast */
             min-width: 100px;
+            padding-top: 0.2rem;
         }
 
         .timeline-content {
-            border-left: 2px solid rgba(255,255,255,0.2);
-            padding-left: 1.5rem;
+            border-left: 2px solid rgba(255,255,255,0.15);
+            padding-left: var(--sp-6);
         }
 
         .state-badge {
             display: inline-block;
-            background: rgba(255, 100, 50, 0.2);
-            color: #ff8c66;
             padding: 0.2rem 0.8rem;
             border-radius: 20px;
+            font-size: 0.82rem;
+            margin-bottom: var(--sp-2);
+            letter-spacing: 0.04em;
+        }
+        .badge-rested    { background: rgba(74,200,255,0.15); color: #4AC8FF; border: 1px solid rgba(74,200,255,0.4); }
+        .badge-over      { background: rgba(255,59,48,0.15);  color: #FF6B61; border: 1px solid rgba(255,59,48,0.4); }
+        .badge-recovering{ background: rgba(255,216,158,0.15); color: #FFD89E; border: 1px solid rgba(255,216,158,0.4); }
+
+        .insight-text-small {
             font-size: 0.9rem;
-            margin-bottom: 0.5rem;
-            border: 1px solid rgba(255, 100, 50, 0.4);
+            color: var(--fg-muted);
+            font-weight: 200;
+            line-height: 1.55;
+            margin-bottom: var(--sp-1);
         }
 
         .metric {
-            font-size: 0.9rem;
-            color: #aaa;
-            margin-top: 0.3rem;
+            font-size: 0.82rem;
+            color: var(--fg-subtle);
+            margin-top: var(--sp-1);
+            font-variant-numeric: tabular-nums;
         }
 
+        /* ─── Buttons ────────────────────────────────────────────────── */
         .actions {
-            opacity: 0;
-            animation: fadeIn 1s forwards;
-            animation-delay: 4s; /* Show buttons after timeline */
+            opacity: 0; /* GSAP will reveal */
         }
-        
+
+        .btn-group {
+            display: flex;
+            gap: var(--sp-6);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--fg);
+            padding: 0.75rem 2rem;
+            min-height: 48px; /* ≥44pt touch target */
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(0.9rem, 1.8vw, 1.1rem);
+            font-weight: 200;
+            border-radius: 50px;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: background var(--dur-fast) ease,
+                        border-color var(--dur-fast) ease,
+                        box-shadow var(--dur-fast) ease,
+                        transform var(--dur-fast) ease;
+        }
+
+        button:hover {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.35);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.5), 0 0 16px rgba(255,255,255,0.15);
+        }
+
+        button:focus-visible {
+            outline: 2px solid var(--accent-ring);
+            outline-offset: 3px;
+        }
+
+        /* ─── Biofeedback Scene ──────────────────────────────────────── */
         #instruction-text {
             position: absolute;
             bottom: 15%;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 2rem;
+            font-size: clamp(1.2rem, 3vw, 2rem);
             font-weight: 200;
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: rgba(255, 255, 255, 0.8);
-            transition: all 0.5s ease;
+            color: rgba(255,255,255,0.85);
             text-align: center;
+            white-space: nowrap;
+            opacity: 0;
         }
+
+        /* SVG ring container */
+        #ring-container {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 520px; height: 520px;
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        /* ─── Bloom Scene ────────────────────────────────────────────── */
+        .bloom-line {
+            font-family: 'Fraunces', serif;
+            font-style: italic;
+            font-weight: 300;
+            font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+            color: var(--state-bloom);
+            letter-spacing: 0.06em;
+            text-shadow: 0 0 40px rgba(255,216,158,0.4);
+            opacity: 0;
+        }
+
+        /* ─── Demo Mode chip ─────────────────────────────────────────── */
+        #demo-chip {
+            position: fixed;
+            top: 1.5rem; right: 1.5rem;
+            background: rgba(255,216,158,0.12);
+            border: 1px solid rgba(255,216,158,0.35);
+            color: var(--state-bloom);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 400;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* ─── Avatar Image ─────────────────────────────────────── */
+        .anatomy-figure {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            height: 75vh;
+            width: auto;
+            z-index: 2;
+            pointer-events: none;
+            will-change: transform, filter;
+            filter:
+                drop-shadow(0 0 4px var(--avatar-color, #4AC8FF))
+                drop-shadow(0 0 18px var(--avatar-color, #4AC8FF))
+                drop-shadow(0 0 38px rgba(74, 200, 255, 0.35));
+            transition: filter 0.3s ease;
+        }
+
+        .anatomy-figure img {
+            height: 100%;
+            width: auto;
+            object-fit: contain;
+            mix-blend-mode: screen;
+            display: block;
+        }
+
+        /* RGB-split glitch clones */
+        .glitch-r {
+            mix-blend-mode: screen;
+            filter:
+                hue-rotate(-40deg) saturate(2)
+                drop-shadow(0 0 6px rgba(255, 59, 48, 0.8));
+            opacity: 0;
+        }
+
+        .glitch-b {
+            mix-blend-mode: screen;
+            filter:
+                hue-rotate(160deg) saturate(2)
+                drop-shadow(0 0 6px rgba(74, 200, 255, 0.8));
+            opacity: 0;
+        }
+
+        /* ─── Daily Review v2 ────────────────────────────────────────── */
+        .review-grid {
+            display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--sp-8); width: min(1280px, 94vw);
+            text-align: left;
+        }
+        .dashboard-row {
+            display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: var(--sp-6); align-items: center; padding: var(--sp-4) 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            opacity: 0;
+        }
+        .dashboard-row:last-child { border-bottom: none; }
+        .chart-block { display: flex; flex-direction: column; }
+        .chart-label { 
+            display: inline-block; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.82rem; margin-bottom: var(--sp-2); letter-spacing: 0.04em;
+            background: rgba(255,255,255,0.1); color: var(--fg); align-self: flex-start;
+        }
+        .sparkline { width: 100%; height: 110px; overflow: visible; }
+        .highlight-circle { stroke: currentColor; fill: none; stroke-dasharray: 3 3; r: 6; }
+        .highlight-list { display: flex; flex-direction: column; gap: var(--sp-1); margin-top: var(--sp-2); }
+        .highlight-callout { display: flex; align-items: center; gap: var(--sp-2); font-size: 0.8rem; color: var(--fg-muted); }
+        .gauge-block { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
+        .radial-gauge { width: 160px; height: 160px; }
+        .gauge-value { font-size: 2.4rem; font-weight: 200; font-variant-numeric: tabular-nums; fill: var(--fg); text-anchor: middle; dominant-baseline: middle; }
+        .gauge-label { font-size: 0.65rem; opacity: 0.6; letter-spacing: 0.1em; text-transform: uppercase; fill: var(--fg); text-anchor: middle; }
+        .gauge-delta { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 12px; font-variant-numeric: tabular-nums; }
+        .gauge-delta.positive { background: rgba(255,59,48,0.15); color: #FF6B61; }
+        .gauge-delta.negative { background: rgba(74,200,255,0.15); color: #4AC8FF; }
+        .gauge-delta.neutral { background: rgba(255,255,255,0.1); color: var(--fg); }
         
+        .questions-header { font-family: 'Fraunces', serif; font-style: italic; font-size: 1.2rem; color: var(--fg-muted); margin-bottom: var(--sp-4); }
+        .question-card {
+            background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 16px;
+            padding: var(--sp-4); margin-bottom: var(--sp-4);
+            transition: transform var(--dur-fast);
+            opacity: 0;
+        }
+        .question-card:hover { transform: translateY(-2px); }
+        .q-text { font-size: 0.95rem; margin-bottom: var(--sp-3); line-height: 1.4; }
+        .q-input-wrap { display: flex; gap: var(--sp-2); }
+        .q-input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: var(--fg); padding: var(--sp-2); resize: none; height: 44px; font-family: 'Outfit'; font-size: 0.9rem; }
+        .mic-btn { width: 44px; height: 44px; border-radius: 22px; padding: 0; display: flex; justify-content: center; align-items: center; min-height: auto; }
+        .mic-btn svg { width: 20px; height: 20px; fill: currentColor; }
+        .actions-bottom { margin-top: var(--sp-6); opacity: 0; }
+
+        /* ─── Reduced motion fallback ─────────────────────────────────── */
+        @media (prefers-reduced-motion: reduce) {
+            .glitch-r, .glitch-b { display: none; }
+            .scene { transition: opacity 0ms; }
+            button { transition: none; }
+            #ambient-layer { transition: none; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- Particle System Canvas -->
+    <!-- Avatar canvas (z-index 0) -->
     <canvas id="avatarCanvas"></canvas>
 
-    <!-- UI Overlay -->
+    <!-- Ambient color bleed (z-index 1) -->
+    <div id="ambient-layer"></div>
+
+    <div class="anatomy-figure" id="avatar-figure">
+      <img src="avatar.png" alt="Holographic Avatar">
+    </div>
+    <!-- RGB-split glitch clones (aria-hidden) -->
+    <div class="anatomy-figure glitch-r" aria-hidden="true">
+      <img src="avatar.png" alt="Holographic Avatar">
+    </div>
+    <div class="anatomy-figure glitch-b" aria-hidden="true">
+      <img src="avatar.png" alt="Holographic Avatar">
+    </div>
+
+    <!-- SVG ring for biofeedback (z-index 2, positioned absolute) -->
+    <div id="ring-container">
+        <svg width="520" height="520" viewBox="0 0 520 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Track ring (subtle) -->
+            <circle cx="260" cy="260" r="250" stroke="rgba(255,255,255,0.07)" stroke-width="1.5"/>
+            <!-- Progress ring -->
+            <circle id="progress-arc"
+                cx="260" cy="260" r="250"
+                stroke="rgba(74,200,255,0.55)"
+                stroke-width="2"
+                stroke-linecap="round"
+                fill="none"
+                transform="rotate(-90 260 260)"
+            />
+        </svg>
+    </div>
+
+    <!-- UI Overlay (z-index 10) -->
     <div id="ui-layer">
-        
-        <!-- Scene 1: Awakening / Day Playback -->
-        <div id="scene-review" class="fade-in">
+
+        <!-- Scene 1: Awakening -->
+        <div id="scene-review" class="scene">
             <h1>Welcome back.</h1>
             <h2>Here is a reflection of your body today.</h2>
-            
-            <div class="timeline">
-                <div class="timeline-item">
-                    <div class="time-label">Morning</div>
-                    <div class="timeline-content">
-                        <div class="state-badge">OVERSTIMULATED</div>
-                        <div class="insight-text-small">High stimulation detected in your biosignals.</div>
-                        <div class="metric">HR: 98.7 BPM | EDA: 174.81 uS</div>
-                    </div>
-                </div>
-                <div class="timeline-item">
-                    <div class="time-label">Afternoon</div>
-                    <div class="timeline-content">
-                        <div class="state-badge">OVERSTIMULATED</div>
-                        <div class="insight-text-small">High cognitive load and stress response active.</div>
-                        <div class="metric">HR: 101.6 BPM | EDA: 2387.22 uS</div>
-                    </div>
-                </div>
-                <div class="timeline-item">
-                    <div class="time-label">Evening</div>
-                    <div class="timeline-content">
-                        <div class="state-badge">OVERSTIMULATED</div>
-                        <div class="insight-text-small">Tension remains high despite the day ending.</div>
-                        <div class="metric">HR: 95.4 BPM | EDA: 408.71 uS</div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="btn-group actions">
-                <button onclick="startBiofeedback()">Start Biofeedback Challenge</button>
-                <button onclick="dismiss()">Not now</button>
+            <div class="review-grid" id="review-grid" aria-live="polite">
+                <div class="review-left" id="dashboards-container">
+                    <!-- Dashboards injected here -->
+                </div>
+                <div class="review-right">
+                    <div class="questions-header">A few things to reflect on</div>
+                    <div id="questions-container">
+                        <!-- Questions injected here -->
+                    </div>
+                    <div class="actions actions-bottom">
+                        <div class="btn-group">
+                            <button onclick="startBiofeedback()" aria-label="Start biofeedback challenge">Start Biofeedback Challenge</button>
+                            <button onclick="dismiss()" aria-label="Dismiss for now">Not now</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Scene 2: Biofeedback Challenge -->
-        <div id="scene-biofeedback" class="hidden">
-            <div class="progress-ring"></div>
-            <div id="instruction-text">Breathe deeply...</div>
+        <!-- Scene 2: Biofeedback -->
+        <div id="scene-biofeedback" class="scene">
+            <div id="instruction-text" aria-live="polite">Focus on your reflection...</div>
+        </div>
+
+        <!-- Scene 3: Bloom -->
+        <div id="scene-bloom" class="scene">
+            <p class="bloom-line">You are here.</p>
         </div>
 
     </div>
 
+    <!-- Demo mode chip -->
+    <div id="demo-chip">Demo Mode</div>
+
+    <!-- Pre-load data to avoid CORS on file:// -->
+    <script src="./review_data.js"></script>
     <script>
-        // --- WebGL / Canvas Human Silhouette Avatar ---
+        // ─── GSAP Setup ────────────────────────────────────────────────
+        gsap.registerPlugin(CustomEase, MotionPathPlugin);
+        gsap.defaults({ ease: 'power3.out', duration: 0.6 });
+
+        // Signature eases
+        CustomEase.create('emoMirror', 'M0,0 C0.25,0.1 0.25,1 1,1');
+
+        // Reduced motion: disable all GSAP animation
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            gsap.globalTimeline.timeScale(0.001);
+        }
+
+        // ─── Canvas Setup ──────────────────────────────────────────────
         const canvas = document.getElementById('avatarCanvas');
         const ctx = canvas.getContext('2d');
         let width, height;
 
-        let state = 'STORM'; // STORM (Overstimulated), CALMING, BLOOM
-        let progress = 0.0;
-        let animationFrameId;
-        let time = 0;
-
         function resize() {
-            width = canvas.width = window.innerWidth;
+            width  = canvas.width  = window.innerWidth;
             height = canvas.height = window.innerHeight;
         }
         window.addEventListener('resize', resize);
         resize();
 
-        // Draw a minimalist human silhouette
-        function drawSilhouette(ctx, centerX, centerY, scale, droopFactor) {
-            ctx.beginPath();
-            
-            // Head
-            ctx.arc(centerX, centerY - 150 * scale + (droopFactor * 30), 40 * scale, 0, Math.PI * 2);
-            
-            // Neck
-            ctx.moveTo(centerX - 15 * scale, centerY - 120 * scale + (droopFactor * 25));
-            ctx.lineTo(centerX + 15 * scale, centerY - 120 * scale + (droopFactor * 25));
-            ctx.lineTo(centerX + 20 * scale, centerY - 90 * scale + (droopFactor * 20));
-            ctx.lineTo(centerX - 20 * scale, centerY - 90 * scale + (droopFactor * 20));
-            
-            // Shoulders & Torso (droop makes shoulders slump)
-            ctx.moveTo(centerX - 20 * scale, centerY - 90 * scale + (droopFactor * 20));
-            ctx.quadraticCurveTo(centerX - 80 * scale, centerY - 80 * scale + (droopFactor * 50), centerX - 90 * scale, centerY - 30 * scale); // Left shoulder
-            ctx.lineTo(centerX - 70 * scale, centerY + 150 * scale); // Left hip
-            ctx.lineTo(centerX + 70 * scale, centerY + 150 * scale); // Right hip
-            ctx.lineTo(centerX + 90 * scale, centerY - 30 * scale); // Right shoulder
-            ctx.quadraticCurveTo(centerX + 80 * scale, centerY - 80 * scale + (droopFactor * 50), centerX + 20 * scale, centerY - 90 * scale + (droopFactor * 20)); // Right neck
-            
-            // Arms
-            ctx.moveTo(centerX - 90 * scale, centerY - 30 * scale);
-            ctx.quadraticCurveTo(centerX - 110 * scale, centerY + 50 * scale, centerX - 100 * scale, centerY + 180 * scale); // Left arm
-            ctx.moveTo(centerX + 90 * scale, centerY - 30 * scale);
-            ctx.quadraticCurveTo(centerX + 110 * scale, centerY + 50 * scale, centerX + 100 * scale, centerY + 180 * scale); // Right arm
+        // ─── Shared Avatar State (GSAP tweens write; drawFrame reads) ──
+        const avatarState = {
+            r: 255, g: 59, b: 48,       // ambient color components
+            hue:         180,           // image filter hue-rotate
+            brightness:  1.0,           // image filter brightness
+            fillAlpha:   0.9,
+            strokeAlpha: 0.0,
+            glitch:      15,
+            auraBlur:    50,
+            auraBreath:  0,             // sin input
+            scale:       1.0,           // canvas scale multiplier tweenable
+            droopFactor: 0,
+            auraRadius:  0,             // for bloom aura ring
+            auraRingAlpha: 0,
+        };
 
-            ctx.fill();
+        const figureEl  = document.getElementById('avatar-figure');
+        const glitchR   = document.querySelector('.glitch-r');
+        const glitchB   = document.querySelector('.glitch-b');
+
+        gsap.ticker.add(() => {
+            const s = avatarState;
+            const col = `rgb(${Math.round(s.r)},${Math.round(s.g)},${Math.round(s.b)})`;
+            const root = document.documentElement;
+            root.style.setProperty('--avatar-color', col);
+            root.style.setProperty('--avatar-opacity', String(Math.max(0.05, s.fillAlpha)));
+            root.style.setProperty('--avatar-stroke', String(1.2 + s.strokeAlpha * 1.2));
+            root.style.setProperty('--avatar-glow', `${Math.round(s.auraBlur * 0.35)}px`);
+            
+            // Image color filters
+            figureEl.querySelector('img').style.filter = `hue-rotate(${s.hue}deg) brightness(${s.brightness})`;
+            glitchR.querySelector('img').style.filter  = `hue-rotate(${s.hue}deg) brightness(${s.brightness})`;
+            glitchB.querySelector('img').style.filter  = `hue-rotate(${s.hue}deg) brightness(${s.brightness})`;
+
+            figureEl.style.transform =
+                `translate(-50%, -50%) scale(${s.scale})`;
+        });
+
+        function glitchTick() {
+            if (avatarState.glitch < 0.5) {
+                glitchR.style.opacity = '0';
+                glitchB.style.opacity = '0';
+                return;
+            }
+            const amt = avatarState.glitch;
+            const oR  = (Math.random() - 0.5) * amt * 0.5;
+            const oB  = (Math.random() - 0.5) * amt * 0.5;
+            const y   = Math.random() * 80;
+            const h   = 5 + Math.random() * 20;
+            glitchR.style.opacity    = String(0.4 + Math.random() * 0.3);
+            glitchB.style.opacity    = String(0.3 + Math.random() * 0.3);
+            glitchR.style.transform  = `translate(calc(-50% + ${oR}px), -50%)`;
+            glitchB.style.transform  = `translate(calc(-50% + ${oB}px), -50%)`;
+            glitchR.style.clipPath   = `inset(${y}% 0 ${Math.max(0, 94 - y - h)}% 0)`;
+            glitchB.style.clipPath   = `inset(${Math.min(99, y + h * 1.4)}% 0 ${Math.max(0, 90 - y - h * 2)}% 0)`;
         }
+        const glitchInterval = setInterval(glitchTick, 80);
 
-        function animate() {
-            time += 0.05;
+        // Particles for BLOOM
+        const particles = [];
+
+        // Progress ring arc
+        const arc    = document.getElementById('progress-arc');
+        const circum = 2 * Math.PI * 250;
+        arc.style.strokeDasharray  = circum;
+        arc.style.strokeDashoffset = circum; // start empty
+
+        // ─── Animation Loop ────────────────────────────────────────────
+        let time = 0;
+        let lastTs = 0;
+
+        function drawFrame(ts) {
+            const dt = Math.min((ts - lastTs) / 1000, 0.05);
+            lastTs = ts;
+            time += dt * 3; // normalised speed
+
             ctx.clearRect(0, 0, width, height);
 
-            let centerX = width / 2;
-            let centerY = height / 2 + 50;
-            let scale = Math.min(width, height) / 600;
+            const cx = width  / 2;
+            const cy = height / 2 + 30;
+            const sc = Math.min(width, height) / 500; // larger base scale
 
-            // Determine visual properties based on state and progress
-            let color = '';
-            let auraBlur = 0;
-            let glitchIntensity = 0;
-            let droopFactor = 0;
+            const color = `rgba(${Math.round(avatarState.r)},${Math.round(avatarState.g)},${Math.round(avatarState.b)}`;
 
-            if (state === 'STORM') {
-                // OVERSTIMULATED: Red/Orange, high glitch, intense pulsing aura, rigid posture
-                color = `rgba(255, 60, 20, 0.9)`;
-                auraBlur = 50 + Math.sin(time * 2) * 20;
-                glitchIntensity = 15;
-                droopFactor = 0; 
-            } else if (state === 'FATIGUED') {
-                // FATIGUED: Dull grey/blue, no aura, slumping posture
-                color = `rgba(100, 110, 130, 0.6)`;
-                auraBlur = 10;
-                glitchIntensity = 0;
-                droopFactor = 1.5; // Heavy slouch
-            } else if (state === 'CALMING') {
-                // BIOFEEDBACK PROGRESS: Transforms from Storm to Calm
-                let r = Math.floor(255 * (1 - progress));
-                let g = Math.floor(60 + 140 * progress);
-                let b = Math.floor(20 + 235 * progress);
-                
-                color = `rgba(${r}, ${g}, ${b}, ${0.9 - 0.2 * progress})`;
-                auraBlur = (50 * (1 - progress)) + (30 + Math.sin(time) * 10) * progress; // Breathes smoothly
-                glitchIntensity = 15 * (1 - progress); // Glitch fades away
-                droopFactor = 0;
-            }
+            // Aura glow
+            const aura = avatarState.auraBlur + Math.sin(time + avatarState.auraBreath) * 12;
+            ctx.shadowColor = `${color},0.9)`;
+            ctx.shadowBlur  = aura;
 
-            // Draw Base Aura (Glow)
-            ctx.shadowColor = color;
-            ctx.shadowBlur = auraBlur;
-            ctx.fillStyle = color;
-
-            // Optional: Draw a secondary larger, fainter aura
+            // Secondary large ambient aura
             ctx.beginPath();
-            ctx.arc(centerX, centerY - 20 * scale, 180 * scale, 0, Math.PI * 2);
-            ctx.fillStyle = color.replace(/[\d.]+\)$/g, '0.05)'); // Very transparent
+            ctx.arc(cx, cy - 20 * sc * avatarState.scale, 200 * sc * avatarState.scale, 0, Math.PI * 2);
+            ctx.fillStyle = `${color},0.04)`;
             ctx.fill();
 
-            // Draw Main Silhouette
-            ctx.fillStyle = color;
-            ctx.shadowBlur = auraBlur / 2;
-            drawSilhouette(ctx, centerX, centerY, scale, droopFactor);
-
-            // Glitch Effect (Horizontal Slicing)
-            if (glitchIntensity > 0 && Math.random() > 0.7) {
-                let sliceY = Math.random() * height;
-                let sliceHeight = Math.random() * 20 + 5;
-                let offsetX = (Math.random() - 0.5) * glitchIntensity * scale * 2;
-                
-                // Get image data for the slice
-                try {
-                    let sliceData = ctx.getImageData(0, sliceY, width, sliceHeight);
-                    // Clear original slice
-                    ctx.clearRect(0, sliceY, width, sliceHeight);
-                    // Draw offset slice
-                    ctx.putImageData(sliceData, offsetX, sliceY);
-                    
-                    // Add some digital noise lines
-                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.5})`;
-                    ctx.fillRect(0, sliceY + Math.random()*sliceHeight, width, 2);
-                } catch(e) {} // Ignore cross-origin canvas errors if any
-            }
-
-            // Reset shadow
             ctx.shadowBlur = 0;
 
-            // Simulate progress in biofeedback mode
-            if (state === 'CALMING' && progress < 1.0) {
-                progress += 0.002;
-                updateInstruction(progress);
+            // Bloom aura ring (expands outward)
+            if (avatarState.auraRingAlpha > 0.01) {
+                ctx.beginPath();
+                ctx.arc(cx, cy - 10 * sc, avatarState.auraRadius * sc, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255,216,158,${avatarState.auraRingAlpha})`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
             }
 
-            animationFrameId = requestAnimationFrame(animate);
+            // Bloom particles
+            for (const p of particles) {
+                if (p.alpha > 0.01) {
+                    ctx.beginPath();
+                    ctx.arc(cx + p.x, cy + p.y, Math.max(0.1, p.r), 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255,216,158,${p.alpha})`;
+                    ctx.fill();
+                }
+            }
+
+            requestAnimationFrame(drawFrame);
+        }
+        requestAnimationFrame(drawFrame);
+
+        // ─── Progress Ring (GSAP) ──────────────────────────────────────
+        function setRingProgress(p) {
+            gsap.to(arc, {
+                strokeDashoffset: circum * (1 - p),
+                duration: 0.8,
+                ease: 'power2.out',
+                overwrite: 'auto'
+            });
         }
 
-        // --- UI Logic ---
+        // Breathing yoyo (starts when biofeedback scene begins)
+        let ringBreathTween = null;
+        function startRingBreath() {
+            ringBreathTween = gsap.to(arc, {
+                attr: { 'stroke-width': 2.8 },
+                duration: 2.75,
+                ease: 'sine.inOut',
+                yoyo: true,
+                repeat: -1
+            });
+        }
+
+        // ─── Instruction Text Crossfade ────────────────────────────────
+        let lastPhrase = '';
+        function updateInstruction(phrase) {
+            if (phrase === lastPhrase) return;
+            lastPhrase = phrase;
+            const el = document.getElementById('instruction-text');
+            gsap.timeline({ overwrite: 'auto' })
+                .to(el, { opacity: 0, y: -6, duration: 0.3, ease: 'power2.in' })
+                .call(() => { el.textContent = phrase; })
+                .to(el, { opacity: 1, y: 0,  duration: 0.55, ease: 'power3.out' });
+        }
+
+        // ─── Ambient Color Bleed ───────────────────────────────────────
+        function setAmbient(rgba) {
+            gsap.to(document.documentElement, {
+                '--ambient-color': rgba,
+                duration: 2.0,
+                ease: 'power2.inOut'
+            });
+        }
+
+        let alarmPulse;
+        // ─── Scene 1: Awakening Timeline ──────────────────────────────
+        function playAwakening() {
+            const sceneEl = document.getElementById('scene-review');
+            sceneEl.classList.add('active');
+            document.body.classList.add('in-review');
+
+            // Gentle pulsing brightness for the alarm state
+            alarmPulse = gsap.fromTo(avatarState, 
+                { brightness: 0.8 }, 
+                { brightness: 0.35, duration: 2.0, ease: 'sine.inOut', yoyo: true, repeat: -1 }
+            );
+
+            const tl = gsap.timeline();
+            tl.to(sceneEl, { opacity: 1, duration: 0.6 })
+              .from('h1',  { y: 24, opacity: 0, duration: 1.2 },              '-=0.4')
+              .from('h2',  { y: 16, opacity: 0, duration: 1.0 },              '-=0.8')
+              .to('.dashboard-row', { opacity: 1, x: 0, stagger: 0.6, duration: 0.8 }, '-=0.4')
+              .add(() => {
+                  // Animate gauges
+                  document.querySelectorAll('.gauge-arc').forEach(arc => {
+                      const fillPct = parseFloat(arc.getAttribute('data-fill'));
+                      const targetValue = parseInt(arc.getAttribute('data-value'));
+                      const circum = 2 * Math.PI * 68;
+                      gsap.to(arc, { strokeDashoffset: circum * (1 - fillPct), duration: 1.4, ease: 'power3.out' });
+                      
+                      const textEl = arc.parentNode.querySelector('.gauge-value');
+                      const counter = { val: 0 };
+                      gsap.to(counter, { val: targetValue, duration: 1.4, ease: 'power3.out', onUpdate: () => {
+                          textEl.textContent = Math.round(counter.val);
+                      }});
+                  });
+              })
+              .to('.question-card', { opacity: 1, y: 0, stagger: 0.5, duration: 0.8 }, '-=0.2')
+              .to('.actions-bottom', { opacity: 1, y: 0, duration: 0.6 },            '+=0.2');
+        }
+
+        // ─── Scene 1 → Scene 2 ─────────────────────────────────────────
         function startBiofeedback() {
-            document.getElementById('scene-review').classList.remove('fade-in');
-            document.getElementById('scene-review').classList.add('hidden');
-            
-            const bioScene = document.getElementById('scene-biofeedback');
-            bioScene.classList.remove('hidden');
-            bioScene.classList.add('fade-in');
+            const s1 = document.getElementById('scene-review');
+            const s2 = document.getElementById('scene-biofeedback');
+            const ring = document.getElementById('ring-container');
+            const inst = document.getElementById('instruction-text');
 
-            state = 'CALMING';
-            progress = 0.0;
+            s2.classList.add('active');
+            setAmbient('rgba(74,200,255,0.08)');
+
+            if (alarmPulse) alarmPulse.kill(); // Stop pulsing
+
+            // Tween avatar to slightly larger
+            gsap.to(avatarState, { scale: 1.08, duration: 2.4, ease: 'sine.inOut' });
+            // Shift avatar color toward calming (Cyan)
+            gsap.to(avatarState, { r: 0, g: 180, b: 255, hue: 0, brightness: 1.0, glitch: 0, auraBlur: 30, duration: 2.0, ease: 'power2.inOut', overwrite: 'auto' });
+
+            const tl = gsap.timeline();
+            tl.to(s1, { opacity: 0, y: -8, duration: 0.9, ease: 'power2.in',
+                        onComplete: () => { s1.classList.remove('active'); document.body.classList.remove('in-review'); } })
+              .to(s2,   { opacity: 1, duration: 1.4, ease: 'emoMirror' },      '-=0.2')
+              .to(ring,  { opacity: 1, duration: 1.0, ease: 'power2.out' },    '-=0.8')
+              .to(inst,  { opacity: 1, duration: 0.8, ease: 'power3.out' },    '-=0.4')
+              .call(startRingBreath);
+
+            // Start auto-advance progress (simulates biosignal calming)
+            progressObj.value = 0;
+            gsap.to(progressObj, {
+                value: 1,
+                duration: 30,
+                ease: 'power1.inOut',
+                overwrite: true,
+                onUpdate: onProgressUpdate,
+                onComplete: triggerBloom
+            });
+
+            lastPhrase = '';
+            updateInstruction('Focus on your reflection...');
         }
 
+        // Live progress object (also driven by demo mode)
+        const progressObj = { value: 0 };
+
+        function onProgressUpdate() {
+            const p = progressObj.value;
+            setRingProgress(p);
+
+            if (p < 0.3)      updateInstruction('Focus on your reflection...');
+            else if (p < 0.6) updateInstruction('Breathe in...  1 · · · 2 · · · 3');
+            else if (p < 0.9) updateInstruction('Exhale slowly...');
+            else               updateInstruction('You have reached equilibrium.');
+        }
+
+        // ─── BLOOM ─────────────────────────────────────────────────────
+        function triggerBloom() {
+            const s2   = document.getElementById('scene-biofeedback');
+            const s3   = document.getElementById('scene-bloom');
+            const ring = document.getElementById('ring-container');
+            const inst = document.getElementById('instruction-text');
+
+            s3.classList.add('active');
+            setAmbient('rgba(255,216,158,0.14)');
+
+            // Avatar → bloom gold, fill fades to stroke-only
+            gsap.to(avatarState, { r: 255, g: 216, b: 158, hue: -130, brightness: 1.4, duration: 1.2, ease: 'power2.inOut' });
+            gsap.to(avatarState, { fillAlpha: 0, strokeAlpha: 0.9, duration: 1.0, ease: 'power2.inOut' });
+
+            // Aura ring expansion
+            avatarState.auraRadius = 180;
+            avatarState.auraRingAlpha = 0.4;
+            gsap.to(avatarState, { auraRadius: 1000, auraRingAlpha: 0, duration: 2.4, ease: 'expo.out' });
+
+            // Particle burst
+            particles.length = 0;
+            for (let i = 0; i < 72; i++) {
+                const angle = (Math.PI * 2 * i) / 72 + (Math.random() - 0.5) * 0.3;
+                const dist  = 180 + Math.random() * 420;
+                particles.push({
+                    x: 0, y: 0,
+                    tx: Math.cos(angle) * dist,
+                    ty: Math.sin(angle) * dist * 0.7,
+                    r: 1.5 + Math.random() * 2,
+                    alpha: 0.85 + Math.random() * 0.15
+                });
+            }
+            particles.forEach((p, i) => {
+                gsap.to(p, {
+                    x: p.tx, y: p.ty,
+                    alpha: 0,
+                    r: 0,
+                    duration: 1.8 + Math.random() * 0.6,
+                    ease: 'expo.out',
+                    delay: i * 0.008
+                });
+            });
+
+            // Scene crossfade + final line
+            const tl = gsap.timeline();
+            tl.to(inst,  { opacity: 0, y: -8, duration: 0.6, ease: 'power2.in' })
+              .to(ring,   { opacity: 0, duration: 0.8 },                          '-=0.3')
+              .to(s2,     { opacity: 0, duration: 1.0, ease: 'power2.in',
+                            onComplete: () => s2.classList.remove('active') },    '-=0.4')
+              .to(s3,     { opacity: 1, duration: 1.6, ease: 'emoMirror' },       '-=0.4')
+              .from('.bloom-line', { y: 20, opacity: 0, duration: 1.4, ease: 'emoMirror' }, '-=0.6');
+
+            if (ringBreathTween) ringBreathTween.kill();
+        }
+
+        // ─── Dismiss ───────────────────────────────────────────────────
         function dismiss() {
-            document.getElementById('ui-layer').style.display = 'none';
+            gsap.to('#scene-review', { opacity: 0, duration: 0.8, ease: 'power2.in',
+                onComplete: () => { document.getElementById('scene-review').classList.remove('active'); document.body.classList.remove('in-review'); } });
         }
 
-        function updateInstruction(prog) {
-            const textEl = document.getElementById('instruction-text');
-            if (prog < 0.3) {
-                textEl.innerText = "Focus on your reflection...";
-            } else if (prog < 0.6) {
-                textEl.innerText = "Breathe in... 1... 2... 3...";
-            } else if (prog < 0.9) {
-                textEl.innerText = "Exhale slowly...";
+        // ─── Demo Mode (D key) ─────────────────────────────────────────
+        let demoActive = false;
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'd' || e.key === 'D') {
+                if (demoActive) return;
+                demoActive = true;
+                gsap.to('#demo-chip', { opacity: 1, duration: 0.4 });
+
+                // Jump straight into biofeedback if still on scene 1
+                const s1 = document.getElementById('scene-review');
+                if (parseFloat(gsap.getProperty(s1, 'opacity')) > 0.1) {
+                    startBiofeedback();
+                }
+                // Override progress to 18s run
+                gsap.killTweensOf(progressObj);
+                progressObj.value = 0;
+                gsap.to(progressObj, {
+                    value: 1,
+                    duration: 18,
+                    ease: 'emoMirror',
+                    overwrite: true,
+                    onUpdate: onProgressUpdate,
+                    onComplete: triggerBloom
+                });
+            }
+        });
+
+        // ─── Daily Review JS ───────────────────────────────────────────
+        async function loadReview() {
+            try {
+                // Try fetch first (if on server)
+                const res = await fetch('./review.json');
+                if (res.ok) {
+                    const data = await res.json();
+                    renderDashboards(data);
+                    renderQuestions(data);
+                    
+                    // Update tagline
+                    const h2 = document.querySelector('#scene-review h2');
+                    if (h2 && data.summary && data.summary.tagline) {
+                        h2.textContent = data.summary.tagline;
+                    }
+                    return;
+                }
+            } catch (e) {
+                console.warn("Fetch failed (likely CORS on file://), falling back to review_data.js");
+            }
+            // Fallback
+            if (typeof reviewDataObj !== 'undefined') {
+                renderDashboards(reviewDataObj);
+                renderQuestions(reviewDataObj);
+                
+                // Update tagline
+                const h2 = document.querySelector('#scene-review h2');
+                if (h2 && reviewDataObj.summary && reviewDataObj.summary.tagline) {
+                    h2.textContent = reviewDataObj.summary.tagline;
+                }
             } else {
-                textEl.innerText = "You have reached equilibrium.";
+                console.error("No review data available.");
             }
         }
 
-        // Start
-        animate();
+        function renderDashboards(data) {
+            const container = document.getElementById('dashboards-container');
+            container.innerHTML = '';
+            
+            const metrics = ['cardio', 'stress'];
+            const colors = { cardio: 'var(--state-calming)', stress: 'var(--state-storm)' };
+            
+            metrics.forEach(m => {
+                const d = data.dashboards[m];
+                if (!d) return;
+                
+                // Build SVG sparkline
+                const points = d.curve.map((pt, i) => `${(i / Math.max(1, d.curve.length - 1)) * 300},${110 - (pt.v / 100 * 110)}`).join(' ');
+                const baselineY = 110 - (d.baseline_line / 100 * 110);
+                
+                let highlightsHtml = '';
+                let circlesHtml = '';
+                d.highlights.forEach(hl => {
+                    const idx = hl.start_idx || 0; // approximate
+                    const x = (idx / 288) * 300;
+                    circlesHtml += `<circle class="highlight-circle" cx="${x}" cy="${110 - (hl.peak / 100 * 110)}" style="color: ${colors[m]}"></circle>`;
+                    highlightsHtml += `<div class="highlight-callout">
+                        <span style="color:${colors[m]}">•</span> ${hl.start} - ${hl.end} | +${hl.pct_above_mean}% (${hl.duration_min} min)
+                    </div>`;
+                });
+                
+                const gaugeCircum = 2 * Math.PI * 68;
+                const sign = d.gauge.delta_pct > 20 ? 'positive' : (d.gauge.delta_pct < -5 ? 'negative' : 'neutral');
+                const signChar = d.gauge.delta_pct > 0 ? '+' : '';
+                
+                let meaningText = '';
+                let meaningColor = '';
+                const delta = d.gauge.delta_pct;
+                const noun = (m === 'cardio') ? 'Load' : 'Stress';
+
+                if (delta < -15) {
+                    meaningText = 'Low ' + noun;
+                    meaningColor = '#4AC8FF'; // Cool blue for low
+                } else if (delta <= 15) {
+                    meaningText = 'Normal ' + noun;
+                    meaningColor = '#4cd964'; // Green for normal/baseline
+                } else if (delta <= 40) {
+                    meaningText = 'High ' + noun;
+                    meaningColor = '#ffcc00'; // Amber for high
+                } else {
+                    meaningText = 'Extreme ' + noun;
+                    meaningColor = '#ff3b30'; // Red for extreme
+                }
+                
+                const html = `
+                    <div class="dashboard-row" data-metric="${m}">
+                        <div class="chart-block">
+                            <div class="chart-label" style="border: 1px solid ${colors[m]}; color: ${colors[m]}">${d.label}</div>
+                            <svg class="sparkline" viewBox="0 0 300 110" preserveAspectRatio="none">
+                                <line x1="0" y1="${baselineY}" x2="300" y2="${baselineY}" stroke="rgba(255,255,255,0.2)" stroke-dasharray="4 4" stroke-width="1"></line>
+                                <polyline points="${points}" fill="none" stroke="${colors[m]}" stroke-width="2" stroke-linejoin="round"></polyline>
+                                ${circlesHtml}
+                            </svg>
+                            <div class="highlight-list">${highlightsHtml}</div>
+                        </div>
+                        <div class="gauge-block">
+                            <svg class="radial-gauge">
+                                <circle cx="80" cy="80" r="68" stroke="rgba(255,255,255,0.08)" stroke-width="8" fill="none"></circle>
+                                <circle class="gauge-arc" data-fill="${d.gauge.fill_pct}" data-value="${d.gauge.value}" cx="80" cy="80" r="68" stroke="${colors[m]}" stroke-width="8" stroke-linecap="round" fill="none" stroke-dasharray="${gaugeCircum}" stroke-dashoffset="${gaugeCircum}" transform="rotate(-90 80 80)"></circle>
+                                <text class="gauge-value" x="80" y="75">0</text>
+                                <text class="gauge-label" x="80" y="100">avg score</text>
+                            </svg>
+                            <div class="gauge-meaning" style="font-size: 0.85rem; letter-spacing: 0.05em; margin-top: -8px; color: ${meaningColor}; text-align: center;">${meaningText}</div>
+                            <div class="gauge-delta ${sign}">${signChar}${d.gauge.delta_pct}% vs week</div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+        
+        function renderQuestions(data) {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+            
+            data.questions.forEach((q, i) => {
+                const html = `
+                    <div class="question-card" id="q-${i}">
+                        <div class="q-text">${q.text}</div>
+                        <div class="q-input-wrap">
+                            <textarea class="q-input" placeholder="Reflect here..."></textarea>
+                            <button class="mic-btn" onclick="mockMic(this)" aria-label="Use voice input">
+                                <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+        
+        function mockMic(btn) {
+            const card = btn.closest('.question-card');
+            const input = card.querySelector('.q-input');
+            
+            gsap.to(btn, { scale: 1.2, duration: 0.1, yoyo: true, repeat: 3 });
+            
+            setTimeout(() => {
+                input.value = "I went for a run.";
+                const pending = JSON.parse(localStorage.getItem('pendingAnswers') || '[]');
+                pending.push({ date: new Date().toISOString(), text: input.value });
+                localStorage.setItem('pendingAnswers', JSON.stringify(pending));
+            }, 1000);
+        }
+
+        // ─── Boot ──────────────────────────────────────────────────────
+        // Initial avatar state: STORM — holographic wireframe look from the start
+        Object.assign(avatarState, { r: 74, g: 180, b: 255, hue: -140, brightness: 0.8, fillAlpha: 0.9, strokeAlpha: 0, glitch: 10, auraBlur: 40 });
+        setAmbient('rgba(74,180,255,0.08)');
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await loadReview();
+            playAwakening();
+        });
     </script>
 </body>
 </html>
