@@ -17,6 +17,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/CustomEase.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/MotionPathPlugin.min.js"></script>
+    <!-- EmoMirror modules -->
+    <script src="./tips.js"></script>
+    <script src="./biosignal.js"></script>
 
     <style>
         /* ─── Design Tokens ─────────────────────────────────────────── */
@@ -395,6 +398,232 @@
             button { transition: none; }
             #ambient-layer { transition: none; }
         }
+
+        /* ─── Biofeedback Challenge v2 ───────────────────────────────────── */
+        #scene-biofeedback {
+            display: grid;
+            grid-template-columns: 32fr 44fr 24fr;
+            align-items: stretch;
+            padding: 0;
+            gap: 0;
+        }
+
+        /* Left column */
+        .bf-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--sp-8) var(--sp-4);
+            border-right: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .tip-panel {
+            flex: 1;
+            display: flex;
+            align-items: flex-start;
+            padding-top: 15vh;
+            text-align: center;
+        }
+
+        .tip-text {
+            font-family: 'Fraunces', serif;
+            font-style: italic;
+            font-weight: 300;
+            font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+            color: #F5F5F7;
+            line-height: 1.5;
+            letter-spacing: 0.02em;
+            text-shadow: 0 0 24px rgba(74,200,255,0.35);
+        }
+
+        .btn-stop {
+            margin-bottom: var(--sp-4);
+            background: rgba(255,59,48,0.08);
+            border-color: rgba(255,59,48,0.25);
+            color: rgba(255,100,90,0.9);
+            font-size: 0.9rem;
+            padding: 0.6rem 1.8rem;
+        }
+        .btn-stop:hover {
+            background: rgba(255,59,48,0.18);
+            border-color: rgba(255,59,48,0.5);
+        }
+
+        /* Center column */
+        .bf-center {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Box-breathing SVG frame */
+        #breath-box-wrap {
+            position: relative;
+            width: min(56vh, 56vw);
+            height: min(56vh, 56vw);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #breath-box-svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+
+        /* Side labels */
+        .box-label {
+            position: absolute;
+            font-size: clamp(0.7rem, 1.2vw, 0.9rem);
+            font-weight: 400;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--fg-muted);
+            opacity: 0.4;
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            white-space: nowrap;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+        }
+        .box-label.active-label {
+            opacity: 1;
+            color: var(--fg);
+        }
+        /* Peripheral countdown next to active label */
+        .box-label .phase-count {
+            font-size: 0.75rem;
+            font-variant-numeric: tabular-nums;
+            opacity: 0.5;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        #label-top    { top: -2.2rem;  left: 50%; transform: translateX(-50%); }
+        #label-right  { right: -4.5rem; top: 50%; transform: translateY(-50%); }
+        #label-bottom { bottom: -2.2rem; left: 50%; transform: translateX(-50%); }
+        #label-left   { left: -4.5rem;  top: 50%; transform: translateY(-50%); }
+
+        /* Avatar inside the box */
+        /* Right column — HP bar */
+        .bf-right {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: var(--sp-4);
+            padding: var(--sp-8) var(--sp-4);
+            border-left: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .hp-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--fg-muted);
+            text-align: center;
+        }
+
+        .hp-value {
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+            font-weight: 200;
+            color: var(--fg);
+        }
+
+        .hp-bar-wrap {
+            position: relative;
+            width: 24px;
+            height: 60vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .hp-bar-track {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.06);
+            border-radius: 12px;
+        }
+
+        .hp-bar-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-radius: 12px;
+            background: var(--state-storm);
+            height: 0%;
+            transition: background 1.5s ease;
+            will-change: height;
+        }
+
+        /* Target marker line */
+        .hp-target-line {
+            position: absolute;
+            left: -8px;
+            right: -8px;
+            height: 2px;
+            background: rgba(255,255,255,0.35);
+            border-radius: 1px;
+            /* bottom% set by JS */
+        }
+
+        /* Win-hold arc around target marker */
+        .hp-win-arc {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            /* bottom set by JS */
+        }
+
+        .hp-target-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            text-align: center;
+            margin-top: var(--sp-2);
+        }
+
+        /* Avatar + glitch clones re-parented into box during challenge */
+        #breath-box-wrap .anatomy-figure {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            height: 82%;
+            width: auto;
+            z-index: 1;
+            pointer-events: none;
+            /* transform written by GSAP ticker: translate(-50%,-50%) scale(n) */
+        }
+
+        /* Green glow when at target */
+        .hp-bar-fill.at-target {
+            background: #4CD964 !important;
+            box-shadow: 0 0 18px rgba(76,217,100,0.6), 0 0 40px rgba(76,217,100,0.25);
+        }
+
+        /* Responsive: stack on narrow screens */
+        @media (max-width: 900px) {
+            #scene-biofeedback {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+                overflow-y: auto;
+            }
+            .bf-left  { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.06); flex-direction: row; padding: var(--sp-4); justify-content: space-between; }
+            .bf-right { border-left: none; border-top: 1px solid rgba(255,255,255,0.06); flex-direction: row; }
+            .hp-bar-wrap { height: 24px; width: 40vw; flex-direction: row; align-items: flex-start; }
+        }
     </style>
 </head>
 <body>
@@ -460,14 +689,91 @@
             </div>
         </div>
 
-        <!-- Scene 2: Biofeedback -->
+        <!-- Scene 2: Biofeedback Challenge -->
         <div id="scene-biofeedback" class="scene">
-            <div id="instruction-text" aria-live="polite">Focus on your reflection...</div>
+
+            <!-- Left: tip panel + quotes + stop button -->
+            <div class="bf-left">
+                <!-- Somatic tip -->
+                <div class="tip-panel">
+                    <p class="tip-text" id="bf-tip" aria-live="polite"></p>
+                </div>
+
+                <!-- Box breathing quotes -->
+                <div class="tip-panel" style="padding-top: 0; padding-bottom: 2vh; border-top: 1px solid rgba(255,255,255,0.06);">
+                    <div style="width:100%">
+                        <div style="font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--fg-subtle); margin-bottom:0.6rem; text-align:center;">Box Breathing</div>
+                        <p class="tip-text" id="bf-quote" aria-live="polite" style="font-size:clamp(1.1rem, 2.2vw, 1.6rem); color:var(--fg-muted);"></p>
+                        <p style="font-size:0.7rem; letter-spacing:0.05em; color:var(--fg-subtle); text-align:right; margin-top:0.5rem;" id="bf-quote-author"></p>
+                    </div>
+                </div>
+
+                <button class="btn-stop" onclick="stopChallenge()" aria-label="Stop biofeedback challenge">Stop</button>
+            </div>
+
+            <!-- Center: avatar inside breathing box -->
+            <div class="bf-center">
+                <div id="breath-box-wrap">
+                    <!-- Side labels -->
+                    <div class="box-label active-label" id="label-top">
+                        Inhale <span class="phase-count" id="count-top"></span>
+                    </div>
+                    <div class="box-label" id="label-right">
+                        Hold <span class="phase-count" id="count-right"></span>
+                    </div>
+                    <div class="box-label" id="label-bottom">
+                        Exhale <span class="phase-count" id="count-bottom"></span>
+                    </div>
+                    <div class="box-label" id="label-left">
+                        Hold <span class="phase-count" id="count-left"></span>
+                    </div>
+
+                    <!-- Box frame SVG + dot -->
+                    <svg id="breath-box-svg" viewBox="0 0 400 400" fill="none"
+                         xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <!-- Box frame -->
+                        <rect id="breath-rect" x="10" y="10" width="380" height="380"
+                              rx="18" ry="18"
+                              stroke="rgba(74,200,255,0.45)" stroke-width="2.5" fill="none"/>
+                        <!-- Traversing dot -->
+                        <circle id="breath-dot" r="9" fill="#4AC8FF" cx="200" cy="10"/>
+                    </svg>
+
+                    <!-- avatar-figure is moved here by JS on challenge start -->
+                </div>
+            </div>
+
+            <!-- Right: RSA HP bar -->
+            <div class="bf-right">
+                <div class="hp-label">Calm</div>
+                <div class="hp-value" id="hp-value-text">— bpm</div>
+                <div class="hp-bar-wrap" id="hp-bar-wrap">
+                    <div class="hp-bar-track"></div>
+                    <div class="hp-bar-fill" id="hp-bar-fill"></div>
+                    <div class="hp-target-line" id="hp-target-line" style="bottom: 70%"></div>
+                    <svg class="hp-win-arc" id="hp-win-arc"
+                         viewBox="0 0 40 40" style="bottom: calc(70% - 20px); display:none">
+                        <circle cx="20" cy="20" r="16"
+                                fill="none" stroke="rgba(76,217,100,0.5)" stroke-width="2.5"
+                                stroke-dasharray="100.5" stroke-dashoffset="100.5"
+                                transform="rotate(-90 20 20)"
+                                id="hp-win-circle"/>
+                    </svg>
+                </div>
+                <div class="hp-target-label">target</div>
+            </div>
+
         </div>
 
         <!-- Scene 3: Bloom -->
-        <div id="scene-bloom" class="scene">
-            <p class="bloom-line">You are here.</p>
+        <div id="scene-bloom" class="scene" style="flex-direction:column; justify-content:space-between; align-items:center; padding-top:1.5vh; padding-bottom:6vh;">
+            <!-- Top: headline + subtitle -->
+            <div style="text-align:center; display:flex; flex-direction:column; gap:var(--sp-2); z-index:20; position:relative;">
+                <p class="bloom-line" id="bloom-headline" style="opacity:0;">You have reached calm.</p>
+                <p style="font-family:'Outfit',sans-serif; font-weight:200; font-size:clamp(0.95rem,2vw,1.3rem); color:var(--fg-muted); letter-spacing:0.04em; opacity:0; max-width:800px; text-align:center; line-height:1.6;" id="bloom-sub">Enjoy the rest of your day.</p>
+            </div>
+            <!-- Bottom: return button -->
+            <button onclick="returnToReview()" style="opacity:0; z-index:20; position:relative;" id="bloom-return-btn">Return to Review</button>
         </div>
 
     </div>
@@ -563,11 +869,11 @@
         // Particles for BLOOM
         const particles = [];
 
-        // Progress ring arc
+        // Progress ring arc (review scene ring — kept for bloom outro)
         const arc    = document.getElementById('progress-arc');
         const circum = 2 * Math.PI * 250;
         arc.style.strokeDasharray  = circum;
-        arc.style.strokeDashoffset = circum; // start empty
+        arc.style.strokeDashoffset = circum;
 
         // ─── Animation Loop ────────────────────────────────────────────
         let time = 0;
@@ -622,40 +928,6 @@
         }
         requestAnimationFrame(drawFrame);
 
-        // ─── Progress Ring (GSAP) ──────────────────────────────────────
-        function setRingProgress(p) {
-            gsap.to(arc, {
-                strokeDashoffset: circum * (1 - p),
-                duration: 0.8,
-                ease: 'power2.out',
-                overwrite: 'auto'
-            });
-        }
-
-        // Breathing yoyo (starts when biofeedback scene begins)
-        let ringBreathTween = null;
-        function startRingBreath() {
-            ringBreathTween = gsap.to(arc, {
-                attr: { 'stroke-width': 2.8 },
-                duration: 2.75,
-                ease: 'sine.inOut',
-                yoyo: true,
-                repeat: -1
-            });
-        }
-
-        // ─── Instruction Text Crossfade ────────────────────────────────
-        let lastPhrase = '';
-        function updateInstruction(phrase) {
-            if (phrase === lastPhrase) return;
-            lastPhrase = phrase;
-            const el = document.getElementById('instruction-text');
-            gsap.timeline({ overwrite: 'auto' })
-                .to(el, { opacity: 0, y: -6, duration: 0.3, ease: 'power2.in' })
-                .call(() => { el.textContent = phrase; })
-                .to(el, { opacity: 1, y: 0,  duration: 0.55, ease: 'power3.out' });
-        }
-
         // ─── Ambient Color Bleed ───────────────────────────────────────
         function setAmbient(rgba) {
             gsap.to(document.documentElement, {
@@ -706,108 +978,112 @@
         function startBiofeedback() {
             const s1 = document.getElementById('scene-review');
             const s2 = document.getElementById('scene-biofeedback');
-            const ring = document.getElementById('ring-container');
-            const inst = document.getElementById('instruction-text');
 
             s2.classList.add('active');
             setAmbient('rgba(74,200,255,0.08)');
 
-            if (alarmPulse) alarmPulse.kill(); // Stop pulsing
+            if (alarmPulse) alarmPulse.kill();
 
-            // Tween avatar to slightly larger
-            gsap.to(avatarState, { scale: 1.08, duration: 2.4, ease: 'sine.inOut' });
-            // Shift avatar color toward calming (Cyan)
-            gsap.to(avatarState, { r: 0, g: 180, b: 255, hue: 0, brightness: 1.0, glitch: 0, auraBlur: 30, duration: 2.0, ease: 'power2.inOut', overwrite: 'auto' });
+            // Calm the glitch before avatar moves into the box
+            gsap.to(avatarState, { glitch: 0, auraBlur: 20, duration: 1.0 });
 
             const tl = gsap.timeline();
             tl.to(s1, { opacity: 0, y: -8, duration: 0.9, ease: 'power2.in',
-                        onComplete: () => { s1.classList.remove('active'); document.body.classList.remove('in-review'); } })
-              .to(s2,   { opacity: 1, duration: 1.4, ease: 'emoMirror' },      '-=0.2')
-              .to(ring,  { opacity: 1, duration: 1.0, ease: 'power2.out' },    '-=0.8')
-              .to(inst,  { opacity: 1, duration: 0.8, ease: 'power3.out' },    '-=0.4')
-              .call(startRingBreath);
-
-            // Start auto-advance progress (simulates biosignal calming)
-            progressObj.value = 0;
-            gsap.to(progressObj, {
-                value: 1,
-                duration: 30,
-                ease: 'power1.inOut',
-                overwrite: true,
-                onUpdate: onProgressUpdate,
-                onComplete: triggerBloom
-            });
-
-            lastPhrase = '';
-            updateInstruction('Focus on your reflection...');
+                        onComplete: () => {
+                            s1.classList.remove('active');
+                            document.body.classList.remove('in-review');
+                        }})
+              .to(s2, { opacity: 1, duration: 1.4, ease: 'emoMirror' }, '-=0.2')
+              .call(initChallenge);
         }
 
-        // Live progress object (also driven by demo mode)
-        const progressObj = { value: 0 };
-
-        function onProgressUpdate() {
-            const p = progressObj.value;
-            setRingProgress(p);
-
-            if (p < 0.3)      updateInstruction('Focus on your reflection...');
-            else if (p < 0.6) updateInstruction('Breathe in...  1 · · · 2 · · · 3');
-            else if (p < 0.9) updateInstruction('Exhale slowly...');
-            else               updateInstruction('You have reached equilibrium.');
+        // ─── STOP (mid-challenge) ───────────────────────────────────────
+        function stopChallenge() {
+            challengeEngine.stop();
+            const s2 = document.getElementById('scene-biofeedback');
+            const s1 = document.getElementById('scene-review');
+            s1.classList.add('active');
+            document.body.classList.add('in-review');
+            gsap.timeline()
+                .to(s2, { opacity: 0, duration: 0.8, ease: 'power2.in',
+                           onComplete: () => s2.classList.remove('active') })
+                .to(s1, { opacity: 1, duration: 1.0, ease: 'emoMirror' }, '-=0.3');
         }
 
         // ─── BLOOM ─────────────────────────────────────────────────────
-        function triggerBloom() {
-            const s2   = document.getElementById('scene-biofeedback');
-            const s3   = document.getElementById('scene-bloom');
-            const ring = document.getElementById('ring-container');
-            const inst = document.getElementById('instruction-text');
+        function triggerBloom(muted) {
+            const s2 = document.getElementById('scene-biofeedback');
+            const s3 = document.getElementById('scene-bloom');
 
+            challengeEngine.stop();    // stops ticker, releases avatar back to body
             s3.classList.add('active');
-            setAmbient('rgba(255,216,158,0.14)');
+            setAmbient(muted ? 'rgba(255,216,158,0.07)' : 'rgba(255,216,158,0.14)');
 
-            // Avatar → bloom gold, fill fades to stroke-only
-            gsap.to(avatarState, { r: 255, g: 216, b: 158, hue: -130, brightness: 1.4, duration: 1.2, ease: 'power2.inOut' });
+            const goldBrightness = muted ? 1.1 : 1.4;
+            gsap.to(avatarState, { r: 255, g: 216, b: 158, hue: -130, brightness: goldBrightness, duration: 1.2, ease: 'power2.inOut' });
             gsap.to(avatarState, { fillAlpha: 0, strokeAlpha: 0.9, duration: 1.0, ease: 'power2.inOut' });
 
             // Aura ring expansion
             avatarState.auraRadius = 180;
-            avatarState.auraRingAlpha = 0.4;
+            avatarState.auraRingAlpha = muted ? 0.2 : 0.4;
             gsap.to(avatarState, { auraRadius: 1000, auraRingAlpha: 0, duration: 2.4, ease: 'expo.out' });
 
             // Particle burst
             particles.length = 0;
-            for (let i = 0; i < 72; i++) {
-                const angle = (Math.PI * 2 * i) / 72 + (Math.random() - 0.5) * 0.3;
+            const count = muted ? 36 : 72;
+            for (let i = 0; i < count; i++) {
+                const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.3;
                 const dist  = 180 + Math.random() * 420;
                 particles.push({
                     x: 0, y: 0,
                     tx: Math.cos(angle) * dist,
                     ty: Math.sin(angle) * dist * 0.7,
                     r: 1.5 + Math.random() * 2,
-                    alpha: 0.85 + Math.random() * 0.15
+                    alpha: (muted ? 0.5 : 0.85) + Math.random() * 0.15
                 });
             }
             particles.forEach((p, i) => {
                 gsap.to(p, {
                     x: p.tx, y: p.ty,
-                    alpha: 0,
-                    r: 0,
+                    alpha: 0, r: 0,
                     duration: 1.8 + Math.random() * 0.6,
                     ease: 'expo.out',
                     delay: i * 0.008
                 });
             });
 
-            // Scene crossfade + final line
-            const tl = gsap.timeline();
-            tl.to(inst,  { opacity: 0, y: -8, duration: 0.6, ease: 'power2.in' })
-              .to(ring,   { opacity: 0, duration: 0.8 },                          '-=0.3')
-              .to(s2,     { opacity: 0, duration: 1.0, ease: 'power2.in',
-                            onComplete: () => s2.classList.remove('active') },    '-=0.4')
-              .to(s3,     { opacity: 1, duration: 1.6, ease: 'emoMirror' },       '-=0.4')
-              .from('.bloom-line', { y: 20, opacity: 0, duration: 1.4, ease: 'emoMirror' }, '-=0.6');
+            // Update bloom text based on win type
+            const headline = document.getElementById('bloom-headline');
+            const sub      = document.getElementById('bloom-sub');
+            if (muted) {
+                if (headline) headline.textContent = 'You showed up. That counts.';
+                if (sub)      sub.textContent      = 'Even a few mindful breaths make a difference. Enjoy the rest of your day.';
+            } else {
+                if (headline) headline.textContent = 'You have reached calm.';
+                if (sub)      sub.textContent      = 'Your nervous system has settled. Carry this stillness with you.';
+            }
 
-            if (ringBreathTween) ringBreathTween.kill();
+            const tl = gsap.timeline();
+            tl.to(s2,  { opacity: 0, duration: 1.0, ease: 'power2.in',
+                          onComplete: () => s2.classList.remove('active') })
+              .to(s3,  { opacity: 1, duration: 1.6, ease: 'emoMirror' },       '-=0.4')
+              .to('#bloom-headline', { y: 0, opacity: 1, duration: 1.4, ease: 'emoMirror' }, '-=0.6')
+              .to('#bloom-sub',        { opacity: 1, y: 0, duration: 1.0, ease: 'power3.out' }, '-=0.2')
+              .to('#bloom-return-btn', { opacity: 1, duration: 0.8, ease: 'power2.out' },        '+=0.4');
+        }
+
+        // ─── Return to Review from Bloom ────────────────────────────────
+        function returnToReview() {
+            const s3 = document.getElementById('scene-bloom');
+            const s1 = document.getElementById('scene-review');
+            s1.classList.add('active');
+            document.body.classList.add('in-review');
+            // Reset bloom opacity for next time
+            gsap.set(['#bloom-headline', '#bloom-sub', '#bloom-return-btn'], { opacity: 0 });
+            gsap.timeline()
+                .to(s3, { opacity: 0, duration: 0.8, ease: 'power2.in',
+                          onComplete: () => s3.classList.remove('active') })
+                .to(s1, { opacity: 1, duration: 1.0, ease: 'emoMirror' }, '-=0.3');
         }
 
         // ─── Dismiss ───────────────────────────────────────────────────
@@ -816,32 +1092,430 @@
                 onComplete: () => { document.getElementById('scene-review').classList.remove('active'); document.body.classList.remove('in-review'); } });
         }
 
-        // ─── Demo Mode (D key) ─────────────────────────────────────────
-        let demoActive = false;
+        // ─── Demo Mode (D key) — jump into challenge with 'success' mock ──
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'd' || e.key === 'D') {
-                if (demoActive) return;
-                demoActive = true;
-                gsap.to('#demo-chip', { opacity: 1, duration: 0.4 });
+            if (e.key !== 'd' && e.key !== 'D') return;
+            gsap.to('#demo-chip', { opacity: 1, duration: 0.4 });
+            biosignalSource.setMockProfile('success');
 
-                // Jump straight into biofeedback if still on scene 1
-                const s1 = document.getElementById('scene-review');
-                if (parseFloat(gsap.getProperty(s1, 'opacity')) > 0.1) {
-                    startBiofeedback();
-                }
-                // Override progress to 18s run
-                gsap.killTweensOf(progressObj);
-                progressObj.value = 0;
-                gsap.to(progressObj, {
-                    value: 1,
-                    duration: 18,
-                    ease: 'emoMirror',
-                    overwrite: true,
-                    onUpdate: onProgressUpdate,
-                    onComplete: triggerBloom
-                });
+            const s1 = document.getElementById('scene-review');
+            if (parseFloat(gsap.getProperty(s1, 'opacity')) > 0.1) {
+                startBiofeedback();
             }
         });
+
+        // ─── Challenge Engine ──────────────────────────────────────────
+        // Encapsulates all biofeedback challenge state: box breathing phase
+        // state machine, RSA computation, HP bar updates, tip rotation, win/loss.
+        const challengeEngine = (() => {
+            // 4-4-6-2 phases (Inhale · Hold · Exhale · Hold)
+            const PHASES = [
+                { name: 'inhale',    dur: 4, label: 'label-top',    count: 'count-top'    },
+                { name: 'hold_top',  dur: 4, label: 'label-right',  count: 'count-right'  },
+                { name: 'exhale',    dur: 6, label: 'label-bottom', count: 'count-bottom' },
+                { name: 'hold_bot',  dur: 2, label: 'label-left',   count: 'count-left'   },
+            ];
+
+            const CHALLENGE_DURATION_MS = 3 * 60 * 1000; // 3 min
+            const WIN_HOLD_MS           = 30_000;         // 30s continuous above target
+            const WIN_ARC_CIRCUM        = 100.5;
+
+            // Avatar scale targets per phase
+            const SCALE = { inhale: 1.12, hold_top: 1.12, exhale: 0.94, hold_bot: 0.94 };
+
+            // Color stops (r,g,b) indexed by HP bucket (0-2)
+            const COLORS = [
+                { r: 255, g: 60,  b: 48  },  // 0–33% → red
+                { r: 255, g: 180, b: 80  },  // 33–66% → amber
+                { r: 74,  g: 200, b: 255 },  // 66–<100% → cyan
+            ];
+
+            let _phaseIdx      = 0;
+            let _phaseSecsLeft = 0;
+            let _ticker        = null; // 1Hz interval
+            let _liveTimer     = null; // 100ms visual refresh
+            let _dotTween      = null;
+            let _tipTimer      = null;
+            let _startTime     = 0;
+            let _winHoldStart  = null; // timestamp when user first crossed target
+            let _won           = false;
+            let _baseline      = null;
+            let _target        = null;
+            let _lastHR        = null;
+            let _displayRSA    = 0;
+            let _running       = false;
+            let _currentTip    = '';
+
+            // Cycle-amplitude RSA: tracks inhale peak and exhale trough per cycle,
+            // averages last 3 completed cycles. No sticky-max problem.
+            let _inhalePeak   = null;
+            let _exhaleValley = null;
+            let _cycleAmps    = [];
+            let _confirmedRSA = 0;
+
+            // ── DOM refs (resolved at init) ──────────────────────────────
+            let _els = {};
+
+            function _resolveEls() {
+                _els = {
+                    dot:       document.getElementById('breath-dot'),
+                    rect:      document.getElementById('breath-rect'),
+                    fill:      document.getElementById('hp-bar-fill'),
+                    targetLine:document.getElementById('hp-target-line'),
+                    winArc:    document.getElementById('hp-win-arc'),
+                    winCircle: document.getElementById('hp-win-circle'),
+                    valueText: document.getElementById('hp-value-text'),
+                    tipEl:     document.getElementById('bf-tip'),
+                    box:       document.getElementById('breath-box-wrap'),
+                };
+            }
+
+            // Move avatar + glitch clones into the box so they share scale/glow
+            function _adoptAvatar() {
+                const box = document.getElementById('breath-box-wrap');
+                [figureEl, glitchR, glitchB].forEach(el => box.appendChild(el));
+            }
+
+            function _releaseAvatar() {
+                const body = document.body;
+                // Re-insert before ui-layer so z-index stack is preserved
+                const uiLayer = document.getElementById('ui-layer');
+                [figureEl, glitchR, glitchB].forEach(el => body.insertBefore(el, uiLayer));
+                // Restore fixed positioning (overridden by box CSS while inside)
+                figureEl.style.cssText = '';
+                glitchR.style.cssText  = '';
+                glitchB.style.cssText  = '';
+            }
+
+            // ── Box path: returns SVG [x,y] for normalised t ∈ [0,1] ────
+            // Perimeter: top(0→1), right(1→2), bottom(2→3), left(3→4)
+            // Each side = 380px at scale of viewBox 400x400, margin 10px
+            const PAD  = 10;
+            const SIDE = 380;
+
+            function _pathPoint(t) {
+                const perim = t * 4; // 0–4 = full lap
+                if (perim < 1) {
+                    // Top: left→right
+                    return { x: PAD + perim * SIDE, y: PAD };
+                } else if (perim < 2) {
+                    // Right: top→bottom
+                    return { x: PAD + SIDE, y: PAD + (perim - 1) * SIDE };
+                } else if (perim < 3) {
+                    // Bottom: right→left
+                    return { x: PAD + SIDE - (perim - 2) * SIDE, y: PAD + SIDE };
+                } else {
+                    // Left: bottom→top
+                    return { x: PAD, y: PAD + SIDE - (perim - 3) * SIDE };
+                }
+            }
+
+            // Dot starts at midpoint of the top side (Inhale)
+            let _lapT = 0; // 0→1 across the full perimeter, per phase
+
+            // ── RSA computation (per-cycle amplitude) ────────────────────
+            // Track peak during inhale, trough during exhale.
+            // On exhale end: record amplitude, average last 3 cycles.
+            // Between cycle completions: show a live preview during exhale
+            // (inhale peak − current HR) so the bar isn't frozen mid-cycle.
+
+            function _onNewHR({ hr }) {
+                if (!_running) return;
+                _lastHR = hr;
+                const phase = PHASES[_phaseIdx].name;
+                if (phase === 'inhale' || phase === 'hold_top') {
+                    if (_inhalePeak === null || hr > _inhalePeak) _inhalePeak = hr;
+                }
+                if (phase === 'exhale' || phase === 'hold_bot') {
+                    if (_exhaleValley === null || hr < _exhaleValley) _exhaleValley = hr;
+                }
+            }
+
+            function _recordCycle() {
+                if (_inhalePeak !== null && _exhaleValley !== null) {
+                    const amp = Math.max(0, _inhalePeak - _exhaleValley);
+                    _cycleAmps.push(amp);
+                    if (_cycleAmps.length > 3) _cycleAmps.shift();
+                    _confirmedRSA = _cycleAmps.reduce((a, b) => a + b, 0) / _cycleAmps.length;
+                }
+                _inhalePeak   = null;
+                _exhaleValley = null;
+            }
+
+            // ── 100ms visual refresh loop ────────────────────────────────
+            function _liveUpdate() {
+                if (!_running) return;
+                const phase = PHASES[_phaseIdx].name;
+                let target = _confirmedRSA;
+
+                // During exhale: show live preview (inhale peak − current HR)
+                // so bar climbs in real time rather than waiting for cycle end.
+                // Cap at _confirmedRSA * 1.5 to prevent over-promising.
+                if ((phase === 'exhale') && _inhalePeak !== null && _lastHR !== null) {
+                    const liveGap = Math.max(0, _inhalePeak - _lastHR);
+                    target = Math.max(_confirmedRSA, Math.min(liveGap, _confirmedRSA + 4));
+                }
+
+                _displayRSA += (target - _displayRSA) * 0.12;
+                _updateBar(_displayRSA);
+            }
+
+            // ── HP bar update ────────────────────────────────────────────
+            // rsaValue: optional live estimate; defaults to _lastRSA
+            function _updateBar(rsaValue) {
+                const fill = _els.fill;
+                const rsa        = (rsaValue !== undefined) ? rsaValue : _displayRSA;
+                const pct        = _target > 0 ? rsa / _target : 0;
+                const pctClamped = Math.max(0, Math.min(1.0, pct)); // hard cap at 100% visually
+
+                // Bar height — short tween so it feels live but not jittery
+                gsap.to(fill, { height: `${pctClamped * 100}%`, duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+
+                // Color
+                let color;
+                if (pctClamped >= 1.0) {
+                    color = '#4CD964'; // green
+                    fill.classList.add('at-target');
+                } else {
+                    fill.classList.remove('at-target');
+                    if (pctClamped < 0.33) color = '#FF3B30';
+                    else if (pctClamped < 0.66) color = '#FFD89E';
+                    else color = '#4AC8FF';
+                }
+                fill.style.background = color;
+
+                // Avatar color (slow 1.5s tween)
+                let cIdx = pctClamped >= 1.0 ? -1 : Math.min(2, Math.floor(pctClamped / 0.33));
+                if (pctClamped >= 1.0) {
+                    gsap.to(avatarState, { r: 255, g: 216, b: 158, hue: -130, brightness: 1.3, duration: 1.5, overwrite: 'auto' });
+                } else {
+                    const c = COLORS[Math.max(0, cIdx)];
+                    gsap.to(avatarState, { r: c.r, g: c.g, b: c.b, hue: cIdx < 1 ? 0 : -40, brightness: 1.0, duration: 1.5, overwrite: 'auto' });
+                }
+
+                // Box stroke color
+                if (_els.rect) _els.rect.style.stroke = color + 'AA';
+                if (_els.dot)  _els.dot.style.fill    = color;
+
+                // Value text — show live estimate
+                if (_els.valueText) {
+                    _els.valueText.textContent = rsa > 0
+                        ? `${rsa.toFixed(1)} bpm swing`
+                        : '— bpm';
+                }
+
+                // Win-hold arc
+                _updateWinArc(pctClamped);
+            }
+
+            function _updateWinArc(pct) {
+                if (pct < 1.0) {
+                    _winHoldStart = null;
+                    if (_els.winArc) _els.winArc.style.display = 'none';
+                    return;
+                }
+                const now = Date.now();
+                if (!_winHoldStart) _winHoldStart = now;
+
+                const held    = now - _winHoldStart;
+                const arcFill = Math.min(1, held / WIN_HOLD_MS);
+
+                if (_els.winArc) _els.winArc.style.display = 'block';
+                if (_els.winCircle) {
+                    _els.winCircle.style.strokeDashoffset =
+                        WIN_ARC_CIRCUM * (1 - arcFill);
+                }
+
+                if (held >= WIN_HOLD_MS && !_won) {
+                    _won = true;
+                    triggerBloom(false);
+                }
+            }
+
+            // ── Phase state machine ──────────────────────────────────────
+            function _onPhaseTick() {
+                // Timeout check
+                if (!_won && Date.now() - _startTime > CHALLENGE_DURATION_MS) {
+                    _won = true;
+                    triggerBloom(true);
+                    return;
+                }
+
+                _phaseSecsLeft--;
+                // Update peripheral countdown
+                const countEl = document.getElementById(PHASES[_phaseIdx].count);
+                if (countEl) countEl.textContent = _phaseSecsLeft > 0 ? _phaseSecsLeft : '';
+
+                if (_phaseSecsLeft <= 0) _advancePhase();
+            }
+
+            function _advancePhase() {
+                // Seal the cycle when exhale ends (moving into hold_bot)
+                if (PHASES[_phaseIdx].name === 'exhale') _recordCycle();
+
+                _phaseIdx = (_phaseIdx + 1) % PHASES.length;
+                const phase = PHASES[_phaseIdx];
+                _phaseSecsLeft = phase.dur;
+
+                // Update label highlights
+                PHASES.forEach((p, i) => {
+                    const el = document.getElementById(p.label);
+                    if (el) el.classList.toggle('active-label', i === _phaseIdx);
+                });
+
+                // Avatar scale tween
+                const scaleTarget = SCALE[phase.name];
+                const ease = phase.name === 'inhale' ? 'power2.out'
+                           : phase.name === 'exhale' ? 'power2.inOut' : 'none';
+                gsap.to(avatarState, { scale: scaleTarget, duration: phase.dur * 0.9, ease });
+
+                // Dot tween to next corner
+                if (_dotTween) _dotTween.kill();
+                const startT = _phaseIdx / 4;
+                const endT   = (_phaseIdx + 1) / 4;
+                const startPt = _pathPoint(startT);
+                const endPt   = _pathPoint(endT);
+
+                // Tween dot along straight side (MotionPath not needed — sides are straight)
+                _dotTween = gsap.to(_els.dot, {
+                    attr: { cx: endPt.x, cy: endPt.y },
+                    duration: phase.dur,
+                    ease: 'none',
+                    onStart: () => {
+                        // Position dot at start of this side
+                        gsap.set(_els.dot, { attr: { cx: startPt.x, cy: startPt.y } });
+                    }
+                });
+
+                // Update bar
+                _updateBar();
+            }
+
+            // ── Tip rotation ─────────────────────────────────────────────
+            function _rotateTip() {
+                const next = pickNextTip(_currentTip, null);
+                _currentTip = next;
+                const el = _els.tipEl;
+                if (!el) return;
+                gsap.timeline()
+                    .to(el, { opacity: 0, y: -8, duration: 0.6, ease: 'power2.in' })
+                    .call(() => { el.textContent = next; })
+                    .to(el, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' });
+            }
+
+            // ── Box breathing quotes ──────────────────────────────────────
+            const QUOTES = [
+                { text: '"Breath is the bridge which connects life to consciousness."', author: '— Thich Nhat Hanh' },
+                { text: '"Almost everything will work again if you unplug it for a few minutes, including you."', author: '— Anne Lamott' },
+                { text: '"When you own your breath, nobody can steal your peace."', author: '— Unknown' },
+                { text: '"The nose is for breathing, the mouth is for eating."', author: '— Proverb' },
+                { text: '"Within you, there is a stillness and a sanctuary to which you can retreat at any time."', author: '— Hermann Hesse' },
+                { text: '"Feelings come and go like clouds in a windy sky. Conscious breathing is my anchor."', author: '— Thich Nhat Hanh' },
+                { text: '"Breathe. Let go. And remind yourself that this very moment is the only one you know you have for sure."', author: '— Oprah Winfrey' },
+            ];
+            let _quoteIdx = -1;
+
+            function _rotateQuote() {
+                _quoteIdx = (_quoteIdx + 1) % QUOTES.length;
+                const q        = QUOTES[_quoteIdx];
+                const textEl   = document.getElementById('bf-quote');
+                const authorEl = document.getElementById('bf-quote-author');
+                if (!textEl) return;
+                gsap.timeline()
+                    .to([textEl, authorEl], { opacity: 0, y: -8, duration: 0.6, ease: 'power2.in' })
+                    .call(() => {
+                        textEl.textContent   = q.text;
+                        if (authorEl) authorEl.textContent = q.author;
+                    })
+                    .to([textEl, authorEl], { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' });
+            }
+
+            // ── Public API ────────────────────────────────────────────────
+            return {
+                start() {
+                    _resolveEls();
+                    _adoptAvatar();
+                    _running      = true;
+                    _phaseIdx     = 0;
+                    _phaseSecsLeft= PHASES[0].dur;
+                    _startTime    = Date.now();
+                    _winHoldStart = null;
+                    _won          = false;
+                    _inhalePeak   = null;
+                    _exhaleValley = null;
+                    _cycleAmps    = [];
+                    _confirmedRSA = 0;
+                    _displayRSA   = 0;
+
+                    _baseline = 0;
+                    _target   = 6; // bpm swing target, calibrated for smoothed EmotiBit HR
+                    // Target line sits at 100% fill (top of bar)
+                    const targetPct = 100;
+                    if (_els.targetLine) _els.targetLine.style.bottom = targetPct + '%';
+                    if (_els.winArc)     _els.winArc.style.bottom     = `calc(${targetPct}% - 20px)`;
+
+                    // Set initial dot position (start of top/inhale side)
+                    const pt = _pathPoint(0);
+                    gsap.set(_els.dot, { attr: { cx: pt.x, cy: pt.y } });
+
+                    // Activate first label
+                    PHASES.forEach((p, i) => {
+                        const el = document.getElementById(p.label);
+                        if (el) el.classList.toggle('active-label', i === 0);
+                    });
+
+                    // Start dot traversal for first phase
+                    const firstPhase = PHASES[0];
+                    const endPt = _pathPoint(1/4);
+                    _dotTween = gsap.to(_els.dot, {
+                        attr: { cx: endPt.x, cy: endPt.y },
+                        duration: firstPhase.dur,
+                        ease: 'none',
+                    });
+
+                    // Avatar scale for inhale
+                    gsap.to(avatarState, { scale: SCALE.inhale, duration: firstPhase.dur * 0.9, ease: 'power2.out' });
+
+                    // Subscribe to biosignal
+                    biosignalSource.subscribe(_onNewHR);
+
+                    // Phase ticker (1 Hz)
+                    _ticker = setInterval(_onPhaseTick, 1000);
+
+                    // 100ms visual refresh for the HP bar
+                    _displayRSA = 0;
+                    _liveTimer = setInterval(_liveUpdate, 100);
+
+                    // Somatic tip rotation (20s)
+                    _currentTip = '';
+                    _rotateTip();
+                    _tipTimer = setInterval(_rotateTip, 20_000);
+
+                    // Box breathing quote rotation (25s offset so they don't fire together)
+                    _rotateQuote();
+                    setTimeout(() => {
+                        _rotateQuote();
+                        setInterval(_rotateQuote, 25_000);
+                    }, 12_500);
+                },
+
+                stop() {
+                    _running = false;
+                    if (_ticker)    { clearInterval(_ticker);    _ticker    = null; }
+                    if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
+                    if (_tipTimer)  { clearInterval(_tipTimer);  _tipTimer  = null; }
+                    if (_dotTween)  { _dotTween.kill(); _dotTween = null; }
+                    biosignalSource.unsubscribe(_onNewHR);
+                    gsap.to(avatarState, { scale: 1.0, duration: 0.8 });
+                    _releaseAvatar();
+                }
+            };
+        })();
+
+        // ─── initChallenge — called after scene fade-in ─────────────────
+        function initChallenge() {
+            challengeEngine.start();
+        }
 
         // ─── Daily Review JS ───────────────────────────────────────────
         async function loadReview() {
