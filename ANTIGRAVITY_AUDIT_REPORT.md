@@ -32,7 +32,7 @@ The codebase is **Hackathon-Plus** grade. It exceeds typical project scope by im
 
 ### Remaining Known Debt (Post-Hackathon)
 1.  **Monolithic Frontend (`ui_mockup.html`)**:  
-    *   3,000+ lines of HTML/CSS/JS in one file. Intentionally left intact for submission stability.
+    *   3,000+ lines of HTML/CSS/JS in one file.
     *   Future work: split into ES modules.
 2.  **Memory Bloat in `features.py`**:  
     *   Reads entire multi-axis CSVs into Pandas DataFrames to extract single variance scalars. Acceptable for demo sessions; would OOM on 24-hour recordings.
@@ -44,23 +44,4 @@ The codebase is **Hackathon-Plus** grade. It exceeds typical project scope by im
     *   Adaptive-threshold PPG peak detector runs entirely in the browser, eliminating round-trip latency to the Python backend.
 3.  **Streaming CSV Parser** (`csv_parser.js`):  
     *   Typed-array implementation handles 200MB EmotiBit recordings in seconds.
-
 ---
-
-## 4. Cleanup Completed
-
-| Item | Status |
-| :--- | :--- |
-| Removed internal planning `.md` files | Done |
-| Removed `AGENT_HANDOVER.md` | Done |
-| Removed deprecated `demo_recap.py` | Done |
-| Untracked committed CSV recording | Done |
-| Added root `README.md` | Done |
-| Replaced O(n²) sliding mean with cumulative sum in `scoring.py` | Done (branch: `risky-scoring-fix`) |
-
----
-
-**Final Verdict:** Repository is judge-ready. The technical depth of the biosignal integration is top-tier for a hackathon submission.
-
-**Audit Completed By:** Antigravity AI  
-**Status:** READY FOR SUBMISSION
