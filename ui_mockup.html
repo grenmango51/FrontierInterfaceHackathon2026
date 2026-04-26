@@ -609,7 +609,7 @@
                         rgba(0,0,0,0) 65%);
             filter: blur(var(--aura-blur, 28px));
             opacity: var(--aura-opacity, 0.85);
-            transform: scale(var(--aura-scale, 1));
+            transform: translate(var(--aura-x, 0), var(--aura-y, 0)) scale(var(--aura-scale, 1));
             z-index: 0;
         }
         .dr-aura.aura-secondary {
@@ -2890,6 +2890,28 @@
                 _idxFloat = Math.max(0, Math.min(REPORTS.length - 1, idxFloat));
                 const snapped = Math.round(_idxFloat);
 
+                // Continuous Aura Reactivity (Change #3)
+                const lower = Math.floor(_idxFloat);
+                const upper = Math.ceil(_idxFloat);
+                const pct = _idxFloat - lower;
+                const s1 = STATES[REPORTS[lower].state];
+                const s2 = STATES[REPORTS[upper].state];
+
+                if (s1 && s2) {
+                    // Increase range for more visible reactivity
+                    const blur = s1.auraBlur + (s2.auraBlur - s1.auraBlur) * pct;
+                    const scale = (s1.auraScale + (s2.auraScale - s1.auraScale) * pct) * 1.05; // Added slight boost
+                    const tint1 = s1.tint.split(',').map(Number);
+                    const tint2 = s2.tint.split(',').map(Number);
+                    const r = Math.round(tint1[0] + (tint2[0] - tint1[0]) * pct);
+                    const g = Math.round(tint1[1] + (tint2[1] - tint1[1]) * pct);
+                    const b = Math.round(tint1[2] + (tint2[2] - tint1[2]) * pct);
+                    
+                    els.bodyStage.style.setProperty('--aura-blur', blur + 'px');
+                    els.bodyStage.style.setProperty('--aura-scale', scale);
+                    els.bodyStage.style.setProperty('--aura-color', `rgba(${r},${g},${b},0.45)`);
+                }
+
                 // Continuous list transform.
                 // list top is at 50% of the viewport (via CSS top:50%)
                 // We center the active item by moving the list UP by its relative center point
@@ -3203,6 +3225,17 @@
                     _bindReportsDrag();
                     _bindReplies();
                     els.playbackBtn.addEventListener('click', _togglePlayback);
+
+                    // Mouse parallax for aura (Change #3) - Using CSS Variables for better performance and no conflicts
+                    window.addEventListener('mousemove', (e) => {
+                        if (!els.scene || !els.scene.classList.contains('active')) return;
+                        const xPct = (e.clientX / window.innerWidth) - 0.5;
+                        const yPct = (e.clientY / window.innerHeight) - 0.5;
+                        
+                        // Set variables on the parent stage so children can inherit or offset
+                        els.bodyStage.style.setProperty('--aura-x', (xPct * 100) + 'px');
+                        els.bodyStage.style.setProperty('--aura-y', (yPct * 100) + 'px');
+                    });
 
                     // Click on report to jump to it (ignore clicks inside reply block)
                     els.reportsList.addEventListener('click', (e) => {
