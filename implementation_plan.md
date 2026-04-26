@@ -60,6 +60,7 @@ flowchart LR
         SC["scoring.py\nCardio Load\nStress Score"]
         RE["review_engine.py\nhighlights\nadaptive questions"]
         IN["insights.py\nnatural-language\ninsight text"]
+        AM["activity_memory.py\ncosine similarity\nactivity matching"]
         HK --> FE --> ML --> SC --> RE --> IN
     end
 
@@ -74,7 +75,16 @@ flowchart LR
         TD["TouchDesigner\nEmoMirror.toe\ngenerative avatar\ntwo-way mirror"]
         BS["biosignal.js\nPPG peak detect\nRSA computation"]
         BR["ui_mockup.html\nDaily Review\nBiofeedback Game"]
+        SE["speech_engine.js\nWeb Speech API\nmic → transcript"]
         BS --> BR
+        BR --> SE
+    end
+
+    subgraph FB["🗣️ Voice Feedback Loop · Future"]
+        direction TB
+        FS["feedback_server.py\nFlask HTTP :5050\nreceives transcript\n+ physio context"]
+        NL["nlp_engine.py\nLLM API call\nextracts activity\n+ emotional label"]
+        FS --> NL
     end
 
     HT -->|"/emo/mode\n= standby"| TD
@@ -84,6 +94,9 @@ flowchart LR
     OB -->|"OSC UDP :7400"| TD
     EB -->|"Oscilloscope\nOSC live :12345"| WB
     WB -->|"WS :8765"| BS
+    SE -->|"POST transcript\n+ physio snapshot"| FS
+    NL -->|"activity signature\n+ updated context"| AM
+    AM -.->|"enriches future\nquestions"| RE
 ```
 
 ---
@@ -99,6 +112,22 @@ When the user gets home, the mirror wakes automatically — no manual trigger ne
 
 **Arrival flow:**
 `Phone connects to WiFi` → `presence_detector` detects MAC → `home_trigger` wakes mirror to **standby** → user plugs in EmotiBit → `watcher` finds it → full pipeline runs → `/emo/mode = "awakening"`
+
+---
+
+### Voice Feedback Loop (Future Feature)
+
+When a user answers a reflective question in the Daily Review, their spoken reply is captured, understood by an LLM, and fed back into the pipeline — so future sessions ask smarter questions.
+
+| File | Role |
+|:-----|:-----|
+| **`speech_engine.js`** | Browser-side. Activates the Web Speech API when the mic button is pressed. Streams the transcript back in real time, shows it in the reply input, then POSTs the final text + a snapshot of the current physio context (HR, EDA, state) to `feedback_server.py`. |
+| **`emomirror/feedback_server.py`** | Lightweight Flask server on `:5050`. Receives `{ transcript, physio_snapshot, question_id, timestamp }` from the browser. Passes the payload to `nlp_engine.py` and returns a generated follow-up insight to the browser for immediate display. |
+| **`emomirror/nlp_engine.py`** | Calls the LLM API (system prompt: *"You are a biofeedback assistant. Extract the activity type, emotional context, and any stress trigger from this user message."*). Returns a structured dict: `{ activity, label, trigger, summary }`. Populates the `_llm_extract()` stub already present in `activity_memory.py`. |
+| **`emomirror/activity_memory.py`** | Already exists. `_llm_extract()` is powered by `nlp_engine.py` once implemented. Stores the resulting activity signature as a 5-dim vector, enabling cosine-similarity recall in future review sessions. |
+
+**Feedback flow:**
+`User presses mic` → `speech_engine.js` captures voice → transcript POSTed to `feedback_server.py` → `nlp_engine.py` calls LLM API → structured activity data written to `activity_memory.py` → `review_engine.py` uses updated memory to personalise next session's questions
 
 ---
 
