@@ -27,6 +27,14 @@
         window.REVIEW_CSV_DEFAULT = './2026-04-25_11-32-15-268408.csv';
         window.REVIEW_MODE = localStorage.getItem('reviewMode') || 'csv';
         window.REVIEW_CSV_PATH = (window.REVIEW_MODE === 'mock') ? null : window.REVIEW_CSV_DEFAULT;
+
+        // Apply the same toggle to the live HR source so the challenge runs on
+        // synthetic data in mock mode and on the EmotiBit WebSocket in csv mode.
+        if (window.REVIEW_MODE === 'mock') {
+            biosignalSource.setMode('mock');
+        } else {
+            biosignalSource.setMode('live');
+        }
     </script>
 
     <style>
@@ -1821,14 +1829,16 @@
             }
         });
 
-        // ─── Mock-mode toggle (M key) — flips between real CSV and reviewDataObj ──
+        // ─── Mock-mode toggle (M key) — flips review CSV AND live HR source ──
+        // mock → recap reads reviewDataObj, challenge runs synthetic HR profile
+        // csv  → recap reads CSV file, challenge connects to EmotiBit WebSocket
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'm' && e.key !== 'M') return;
             if (e.target.matches('input, textarea')) return;
             const next = (localStorage.getItem('reviewMode') === 'mock') ? 'csv' : 'mock';
             localStorage.setItem('reviewMode', next);
             const toast = document.createElement('div');
-            toast.textContent = `Switching to ${next.toUpperCase()} data…`;
+            toast.textContent = `Switching review + challenge to ${next.toUpperCase()} data…`;
             toast.style.cssText = [
                 'position:fixed', 'top:50%', 'left:50%', 'transform:translate(-50%,-50%)',
                 'background:rgba(0,0,0,0.85)', 'color:#F5F5F7',
