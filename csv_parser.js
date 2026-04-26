@@ -2,6 +2,35 @@
 // Two-pass byte-level scan: never materialises per-sample objects.
 // Public: window.parseEmotiBitCSV(text, filename) → { review, reports, meters, startDate, endDate, durationHours }
 
+const userBaseline = {
+    KEY: 'emomirror_baseline_v1',
+    load() {
+        try {
+            const raw = localStorage.getItem(this.KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch(e) { return null; }
+    },
+    update(cardioAvg, stressAvg) {
+        let b = this.load() || { 
+            cardio: { mean: 0, m2: 0, n: 0, std: 0 }, 
+            stress: { mean: 0, m2: 0, n: 0, std: 0 } 
+        };
+        
+        const updateMetric = (val, stats) => {
+            stats.n = Math.min(stats.n + 1, 30); // rolling 30-session window
+            const delta = val - stats.mean;
+            stats.mean += delta / stats.n;
+            const delta2 = val - stats.mean;
+            stats.m2 += delta * delta2;
+            stats.std = stats.n > 1 ? Math.sqrt(stats.m2 / (stats.n - 1)) : 0;
+        };
+
+        updateMetric(cardioAvg, b.cardio);
+        updateMetric(stressAvg, b.stress);
+        localStorage.setItem(this.KEY, JSON.stringify(b));
+    }
+};
+
 (function () {
 
     const BUCKET_5_MIN  = 5 * 60_000;
@@ -108,14 +137,35 @@
         };
     }
 
-    // ── State classification (unchanged from previous parser) ────────────
-    function classifyState(cardio, stress, activity) {
+    // ── State classification (relative to user baseline) ─────────────────
+    function classifyState(cardio, stress, activity, baseline) {
         if (cardio == null) return 'calm';
-        if (stress > 70 && cardio > 70) return 'overstimulated';
-        if (stress > 60) return 'anxious';
-        if (cardio > 70 && activity > 50) return 'active';
-        if (cardio > 65) return 'stressed';
-        if (cardio < 40 && activity < 20) return 'fatigued';
+        
+        // Cold-start fallback if we don't have enough history
+        if (!baseline || baseline.cardio.n < 3 || baseline.cardio.std < 1) {
+            if (stress > 60 && cardio > 60) return 'overstimulated';
+            if (stress > 45) return 'anxious';
+            if (cardio > 60 && activity > 40) return 'active';
+            if (cardio > 55) return 'stressed';
+            if (cardio < 40 && activity < 15) return 'fatigued';
+            return 'calm';
+        }
+
+        const c = baseline.cardio;
+        const s = baseline.stress;
+
+        // Sigma-based thresholds (anchored to user's personal normal)
+        const isStressedHigh = cardio > (c.mean + c.std * 1.5);
+        const isStressHigh   = stress > (s.mean + s.std * 1.5);
+        const isStressed     = cardio > (c.mean + c.std);
+        const isAnxious      = stress > (s.mean + s.std);
+
+        if (isStressHigh && isStressedHigh) return 'overstimulated';
+        if (isAnxious) return 'anxious';
+        if (isStressed && activity > 40) return 'active';
+        if (isStressed) return 'stressed';
+        if (cardio < (c.mean - c.std) && activity < 15) return 'fatigued';
+        
         return 'calm';
     }
 
@@ -165,7 +215,7 @@
         return qs;
     }
 
-    function buildReports(cardio30, stress30, activity30) {
+    function buildReports(cardio30, stress30, activity30, baseline) {
         const TPL = {
             calm:           ['Steady rhythm. Body and mind in alignment.', 'Quiet baseline. Breath even, signal clear.', 'Settled. Low arousal, attention soft.'],
             stressed:       ['Stress signals rising. Breath shorter, shoulders up.', 'Elevated load — system pushing through.', 'Heart climbing, tension lingering.'],
@@ -179,7 +229,7 @@
         return cardio30.map((c, i) => {
             const s = stress30[i] ? stress30[i].v : 0;
             const a = activity30[i] ? activity30[i].v : 0;
-            const state = classifyState(c.v, s, a);
+            const state = classifyState(c.v, s, a, baseline);
             return { t: c.t, state, text: TPL[state][i % TPL[state].length], question: Q[state], mockAnswer: A[state] };
         });
     }
@@ -201,6 +251,7 @@
     // ── Main ─────────────────────────────────────────────────────────────
     window.parseEmotiBitCSV = function (text, filename) {
         const startDate = parseStartTime(filename);
+        const baseline = userBaseline.load();
         const t0Start = performance.now();
 
         // ── Pass 1: find first/last timestamp (cheap byte scan) ──────────
@@ -274,7 +325,9 @@
                     pushHRStress(tMs, hr);
                 });
             } else if (tag === 'SF') {
+                // SF is inter-beat interval in seconds. Range [0.3, 3.0] covers HR 20-200.
                 forEachValue(txt, vS, vE, v => {
+                    if (v < 0.3 || v > 3.0) return;
                     sfRaw.push({ tMs, v });
                     if (v < sfMin) sfMin = v;
                     if (v > sfMax) sfMax = v;
@@ -298,7 +351,22 @@
         });
 
         // SF post-pass: now we know min/max, fold into stress aggregates.
-        if (sfRaw.length) {
+        // Using a robust range (10th to 90th percentile) to avoid "flat lines" caused by sensor noise.
+        if (sfRaw.length > 20) {
+            const sortedVals = sfRaw.map(s => s.v).sort((a, b) => a - b);
+            const p10 = sortedVals[Math.floor(sortedVals.length * 0.10)];
+            const p90 = sortedVals[Math.floor(sortedVals.length * 0.90)];
+            const range = (p90 - p10) || 1;
+            
+            for (let i = 0; i < sfRaw.length; i++) {
+                const s = sfRaw[i];
+                // Clamp to [0, 100] after robust normalization
+                const stressScore = Math.max(0, Math.min(100, ((s.v - p10) / range) * 100));
+                stressB5.add(s.tMs, stressScore);
+                stressB30.add(s.tMs, stressScore);
+            }
+        } else if (sfRaw.length) {
+            // Fallback for very short recordings
             const range = (sfMax - sfMin) || 1;
             for (let i = 0; i < sfRaw.length; i++) {
                 const s = sfRaw[i];
@@ -324,7 +392,7 @@
         const cardioPeak  = cardioStats.max;
         const stressPeak  = stressStats.max;
 
-        const dominantState = classifyState(cardioAvg, stressAvg, activityAvg);
+        const dominantState = classifyState(cardioAvg, stressAvg, activityAvg, baseline);
         const TAGLINES = {
             calm:'Your body is in a state of calm balance.',
             stressed:'Your body carried real load today.',
@@ -371,7 +439,7 @@
             questions: buildQuestions(cardioHL, stressHL),
         };
 
-        const reports = buildReports(cardio30, stress30, activ30);
+        const reports = buildReports(cardio30, stress30, activ30, baseline);
         const meters  = buildMeters(cardioAvg, stressAvg, activityAvg);
         const endDate = new Date(startDate.getTime() + durationMs);
         const parseMs = performance.now() - t0Start;
@@ -390,8 +458,14 @@
                 activCount: activStats.count,
                 cardioAvg, stressAvg, activityAvg,
                 durationMs,
+                baseline: baseline ? { n: baseline.cardio.n } : null,
             },
         };
+        
+        // Persist session to rolling baseline
+        userBaseline.update(cardioAvg, stressAvg);
+
+        return result;
     };
 
 })();

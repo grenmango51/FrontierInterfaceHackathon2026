@@ -1973,20 +1973,6 @@
 
             function _onNewHR({ hr }) {
                 if (!_running) return;
-                
-                // Outlier Rejection: Reject HR jumps > 15 bpm (physiologically implausible noise)
-                if (_lastHR !== null) {
-                    const delta = Math.abs(hr - _lastHR);
-                    if (delta > 15) {
-                        console.warn(`[Biofeedback] Rejected HR spike: ${hr} (previous ${_lastHR})`);
-                        // Increase avatar glitch when signal is noisy
-                        gsap.to(avatarState, { glitch: 25, duration: 0.3, onComplete: () => {
-                            gsap.to(avatarState, { glitch: 0, duration: 1.5 });
-                        }});
-                        return; 
-                    }
-                }
-
                 _lastHR = hr;
                 const phase = PHASES[_phaseIdx].name;
                 if (phase === 'inhale' || phase === 'hold_top') {
@@ -2012,6 +1998,10 @@
                         _confirmedRSA = _cycleAmps.reduce((a, b) => a + b, 0) / _cycleAmps.length;
                     } else {
                         console.warn(`[RSA] Rejected cycle: p75=${p75inhale.toFixed(1)}, p25=${p25exhale.toFixed(1)}, amp=${amp.toFixed(1)} bpm`);
+                        // Trigger visual glitch on rejected cycle
+                        gsap.to(avatarState, { glitch: 25, duration: 0.3, onComplete: () => {
+                            gsap.to(avatarState, { glitch: 0, duration: 1.5 });
+                        }});
                     }
                 }
                 // Reset for next cycle
@@ -2035,12 +2025,11 @@
 
                 _displayRSA += (target - _displayRSA) * 0.12;
                 
-                // Adaptive Target (Auto-Gain): If signal is very weak, lower the target 
-                // so the bar still moves and provides feedback.
+                // Adaptive Target (Asymmetric Auto-Gain): target may only drift DOWN to keep
+                // the bar alive when the user's signal is weak. It never ratchets up — a
+                // strong session should not punish the user with a moving goalpost.
                 if (_confirmedRSA > 0 && _confirmedRSA < _target * 0.5) {
                     _target = _target * 0.95 + _confirmedRSA * 0.05; // slowly drift target down
-                } else if (_confirmedRSA > _target) {
-                    _target = _target * 0.8 + _confirmedRSA * 0.2;  // quickly push target up
                 }
                 _target = Math.max(3, Math.min(15, _target)); // keep target in sensible bounds
 

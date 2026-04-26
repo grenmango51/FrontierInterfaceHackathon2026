@@ -74,12 +74,22 @@ const biosignalSource = (() => {
                     const ibi = timeSinceLast; // inter-beat interval in ms
                     if (ibi >= PPG_MIN_IBI_MS && ibi <= PPG_MAX_IBI_MS) {
                         _ibiHistory.push(ibi);
-                        if (_ibiHistory.length > 8) _ibiHistory.shift();
+                        if (_ibiHistory.length > 3) _ibiHistory.shift();
 
-                        // Compute instantaneous HR from rolling IBI average
-                        const avgIbi = _ibiHistory.reduce((a, b) => a + b, 0) / _ibiHistory.length;
-                        const hr = 60000 / avgIbi;
+                        // Median-of-3 guard: detect single-beat spikes/dropouts
+                        let targetIbi = ibi;
+                        if (_ibiHistory.length === 3) {
+                            const sorted = [..._ibiHistory].sort((a, b) => a - b);
+                            const median = sorted[1];
+                            // If new IBI deviates > 30% from median, it's likely a misfire
+                            if (Math.abs(ibi - median) > median * 0.3) {
+                                targetIbi = median;
+                            }
+                        }
 
+                        // Emit instantaneous HR from the guarded IBI.
+                        // Smoothing for RSA computation is handled downstream in the challenge engine.
+                        const hr = 60000 / targetIbi;
                         _emit({ hr: Math.round(hr * 10) / 10, timestamp: now });
                     }
                 }
