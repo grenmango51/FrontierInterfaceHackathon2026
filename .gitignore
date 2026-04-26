@@ -7,3 +7,10 @@ tmp/
 node_modules/
 .DS_Store
 vendor/
+
+# Internal working docs (kept locally, not shipped to judges)
+BIOFEEDBACK_AUDIT.md
+BIOFEEDBACK_FIXES_PLAN.md
+implementation_plan.md
+peer_review.md
+Antigravity review/
