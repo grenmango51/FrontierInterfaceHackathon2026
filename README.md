@@ -36,6 +36,12 @@ Then reload `ui_mockup.html`.
 
 ---
 
+## 🛰️ Working with Real Data
+
+For detailed instructions on connecting an EmotiBit wearable and using real biometric data (streaming or recorded), see the **[EmotiBit Real Data Guide](EMOTIBIT_DATA_GUIDE.md)**.
+
+---
+
 ## Repository Layout
 
 ```

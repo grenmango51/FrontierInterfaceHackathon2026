@@ -143,11 +143,11 @@ const userBaseline = {
         
         // Cold-start fallback if we don't have enough history
         if (!baseline || baseline.cardio.n < 3 || baseline.cardio.std < 1) {
-            if (stress > 60 && cardio > 60) return 'overstimulated';
-            if (stress > 45) return 'anxious';
-            if (cardio > 60 && activity > 40) return 'active';
-            if (cardio > 55) return 'stressed';
-            if (cardio < 40 && activity < 15) return 'fatigued';
+            if (stress > 75 && cardio > 75) return 'overstimulated';
+            if (stress > 65) return 'anxious';
+            if (cardio > 70 && activity > 40) return 'active';
+            if (cardio > 65) return 'stressed';
+            if (cardio < 35 && activity < 15) return 'fatigued';
             return 'calm';
         }
 
@@ -309,7 +309,10 @@ const userBaseline = {
             let varAcc = 0;
             for (let i = 0; i < hrRingLen; i++) { const d = hrRing[i] - mean; varAcc += d * d; }
             const std = Math.sqrt(varAcc / hrRingLen);
-            const stressScore = Math.max(0, Math.min(100, std * 8));
+            
+            // std * 8 was way too sensitive (normal ±10bpm jump = score 80).
+            // Using std * 3 instead, clamped to 100.
+            const stressScore = Math.max(0, Math.min(100, std * 3));
             stressB5.add(tMs, stressScore);
             stressB30.add(tMs, stressScore);
         };
@@ -325,12 +328,24 @@ const userBaseline = {
                     pushHRStress(tMs, hr);
                 });
             } else if (tag === 'SF') {
-                // SF is inter-beat interval in seconds. Range [0.3, 3.0] covers HR 20-200.
+                // SF is SCR Frequency (sweat spikes per minute). 
+                // High values (10+) indicate high arousal/stress.
                 forEachValue(txt, vS, vE, v => {
-                    if (v < 0.3 || v > 3.0) return;
+                    // Sanity check: SCR frequency is typically 0-30 events/min
+                    if (v < 0 || v > 60) return;
                     sfRaw.push({ tMs, v });
                     if (v < sfMin) sfMin = v;
                     if (v > sfMax) sfMax = v;
+                });
+            } else if (tag === 'BI') {
+                // BI is Inter-Beat Interval in milliseconds.
+                forEachValue(txt, vS, vE, v => {
+                    if (v < 300 || v > 2000) return; // 30-200 BPM range
+                    const hr = 60000 / v;
+                    const cardio = Math.max(0, Math.min(100, ((hr - 40) / 80) * 100));
+                    cardioB5.add(tMs, cardio);
+                    cardioB30.add(tMs, cardio);
+                    pushHRStress(tMs, hr);
                 });
             } else if (tag === 'AX' || tag === 'AY' || tag === 'AZ') {
                 const axis = tag === 'AX' ? 'x' : tag === 'AY' ? 'y' : 'z';
@@ -444,6 +459,8 @@ const userBaseline = {
         const endDate = new Date(startDate.getTime() + durationMs);
         const parseMs = performance.now() - t0Start;
 
+        userBaseline.update(cardioAvg, stressAvg);
+
         return {
             review: reviewObj,
             reports,
@@ -461,11 +478,6 @@ const userBaseline = {
                 baseline: baseline ? { n: baseline.cardio.n } : null,
             },
         };
-        
-        // Persist session to rolling baseline
-        userBaseline.update(cardioAvg, stressAvg);
-
-        return result;
     };
 
 })();
