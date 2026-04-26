@@ -70,9 +70,12 @@ def derive_scr_events(eda_series, fs):
         eda_series = np.array(eda_series)
         
     last_peak_idx = -min_gap
-    
+
+    # O(n) running baseline via cumulative sum instead of O(n²) np.mean per step
+    cumsum = np.cumsum(np.insert(eda_series, 0, 0.0))
+
     for i in range(window, len(eda_series)):
-        baseline = np.mean(eda_series[i-window:i])
+        baseline = (cumsum[i] - cumsum[i - window]) / window
         val = eda_series[i]
         
         if val - baseline > threshold and (i - last_peak_idx) >= min_gap:
