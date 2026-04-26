@@ -273,6 +273,10 @@ const userBaseline = {
         const cardioB30 = makeBuckets(n30, BUCKET_30_MIN);
         const stressB5  = makeBuckets(n5,  BUCKET_5_MIN);
         const stressB30 = makeBuckets(n30, BUCKET_30_MIN);
+        // Separate buckets for SF-based arousal so it doesn't dilute the HR-stdev proxy.
+        // Final stress = average of both curves per bucket at output time.
+        const sfStressB5  = makeBuckets(n5,  BUCKET_5_MIN);
+        const sfStressB30 = makeBuckets(n30, BUCKET_30_MIN);
         const activB5   = makeBuckets(n5,  BUCKET_5_MIN);
         const activB30  = makeBuckets(n30, BUCKET_30_MIN);
 
@@ -310,9 +314,8 @@ const userBaseline = {
             for (let i = 0; i < hrRingLen; i++) { const d = hrRing[i] - mean; varAcc += d * d; }
             const std = Math.sqrt(varAcc / hrRingLen);
             
-            // std * 8 was way too sensitive (normal ±10bpm jump = score 80).
-            // Using std * 3 instead, clamped to 100.
-            const stressScore = Math.max(0, Math.min(100, std * 3));
+            // Calibrated so a typical resting-day stdev (~17bpm) lands near 40.
+            const stressScore = Math.max(0, Math.min(100, std * 2.4));
             stressB5.add(tMs, stressScore);
             stressB30.add(tMs, stressScore);
         };
@@ -365,47 +368,61 @@ const userBaseline = {
             }
         });
 
-        // SF post-pass: now we know min/max, fold into stress aggregates.
-        // Using a robust range (10th to 90th percentile) to avoid "flat lines" caused by sensor noise.
+        // SF post-pass: normalise into its own buckets (sfStressB*) to avoid
+        // diluting/inflating the HR-stdev proxy which has far more samples.
         if (sfRaw.length > 20) {
             const sortedVals = sfRaw.map(s => s.v).sort((a, b) => a - b);
             const p10 = sortedVals[Math.floor(sortedVals.length * 0.10)];
             const p90 = sortedVals[Math.floor(sortedVals.length * 0.90)];
             const range = (p90 - p10) || 1;
-            
             for (let i = 0; i < sfRaw.length; i++) {
                 const s = sfRaw[i];
-                // Clamp to [0, 100] after robust normalization
                 const stressScore = Math.max(0, Math.min(100, ((s.v - p10) / range) * 100));
-                stressB5.add(s.tMs, stressScore);
-                stressB30.add(s.tMs, stressScore);
+                sfStressB5.add(s.tMs, stressScore);
+                sfStressB30.add(s.tMs, stressScore);
             }
         } else if (sfRaw.length) {
-            // Fallback for very short recordings
             const range = (sfMax - sfMin) || 1;
             for (let i = 0; i < sfRaw.length; i++) {
                 const s = sfRaw[i];
                 const stressScore = ((s.v - sfMin) / range) * 100;
-                stressB5.add(s.tMs, stressScore);
-                stressB30.add(s.tMs, stressScore);
+                sfStressB5.add(s.tMs, stressScore);
+                sfStressB30.add(s.tMs, stressScore);
             }
         }
 
         const cardio5  = cardioB5.toCurve(startDate);
-        const stress5  = stressB5.toCurve(startDate);
         const cardio30 = cardioB30.toCurve(startDate);
-        const stress30 = stressB30.toCurve(startDate);
         const activ30  = activB30.toCurve(startDate);
+
+        // Merge HR-stdev and SF stress curves: average the two signals per bucket.
+        // Falls back to whichever has data if one stream is absent.
+        const mergeCurves = (hrCurve, sfCurve) => hrCurve.map((p, i) => {
+            const sf = sfCurve[i];
+            const hrHasData = p.v != null;
+            const sfHasData = sf && sf.v != null;
+            const merged = hrHasData && sfHasData ? (p.v + sf.v) / 2
+                         : hrHasData ? p.v
+                         : sfHasData ? sf.v : 0;
+            return { t: p.t, v: merged, idx: p.idx };
+        });
+
+        const stress5  = mergeCurves(stressB5.toCurve(startDate),  sfStressB5.toCurve(startDate));
+        const stress30 = mergeCurves(stressB30.toCurve(startDate), sfStressB30.toCurve(startDate));
 
         const cardioStats = cardioB5.stats();
         const stressStats = stressB5.stats();
+        const sfStressStats = sfStressB5.stats();
         const activStats  = activB5.stats();
 
         const cardioAvg   = cardioStats.avg;
-        const stressAvg   = stressStats.avg;
+        // Average the two stress signals for classification (same as curve merge logic).
+        const stressAvg   = sfStressStats.count > 0
+            ? (stressStats.avg + sfStressStats.avg) / 2
+            : stressStats.avg;
         const activityAvg = activStats.avg;
         const cardioPeak  = cardioStats.max;
-        const stressPeak  = stressStats.max;
+        const stressPeak  = Math.max(stressStats.max, sfStressStats.max);
 
         const dominantState = classifyState(cardioAvg, stressAvg, activityAvg, baseline);
         const TAGLINES = {
