@@ -30,44 +30,87 @@ The `emotibit_auto/` module is **already implemented** and handles the first hal
 
 ## 3. System Architecture
 
+> Architecture reads **left → right**. Each column is a processing layer.
+
 ```mermaid
-flowchart TD
-    subgraph EXISTING["✅ Existing: emotibit_auto/"]
-        W["watcher.py<br/>(main loop)"]
-        D["discover.py<br/>(subnet scan + FTP auth)"]
-        T["transfer.py<br/>(FTP download)"]
-        P["parse.py<br/>(DataParser .exe)"]
-        W --> D --> T --> P
+flowchart LR
+    subgraph AUTO["🏠 Auto-Activation · Future"]
+        direction TB
+        PD["presence_detector.py\nARP-scans home WiFi\nfor user's phone MAC"]
+        HT["home_trigger.py\nfires on arrival event\nsends standby OSC"]
+        PD -->|"phone\ndetected"| HT
     end
 
-    subgraph NEW["🆕 New: emomirror/"]
-        HOOK["hook.py<br/>(event listener on watcher)"]
-        FE["features.py<br/>(signal processing)"]
-        ML["ml_engine.py<br/>(baseline + inference)"]
-        OSC["osc_bridge.py<br/>(send to TouchDesigner)"]
-        BF["biofeedback.py<br/>(real-time challenge)"]
-        HOOK --> FE --> ML --> OSC
-        BF --> OSC
+    subgraph ACQ["📡 emotibit_auto/  ✅ Done"]
+        direction TB
+        EB["EmotiBit\nwearable all day"]
+        WT["watcher.py\nloop every 30s"]
+        DI["discover.py\nsubnet scan + FTP auth"]
+        TR["transfer.py\nFTP download\n.csv + _info.json"]
+        PA["parse.py\nDataParser .exe\n→ per-TypeTag CSVs"]
+        EB -->|"USB → serial 'F'\nFTP mode"| WT
+        WT --> DI --> TR --> PA
     end
 
-    subgraph TD_VIS["🎨 TouchDesigner: EmoMirror.toe"]
-        OSC_IN["OSC In CHOP"]
-        SM["State Machine<br/>(Python DAT)"]
-        AV["Generative Avatar"]
-        UI["UI Overlays"]
-        FB_VIS["Biofeedback Visuals"]
-        OSC_IN --> SM
-        SM --> AV
-        SM --> UI
-        SM --> FB_VIS
+    subgraph PROC["🧠 emomirror/  ✅ Done"]
+        direction TB
+        HK["hook.py\nentry point"]
+        FE["features.py\nHR · EDA · motion\ntemp · 5-min epochs"]
+        ML["ml_engine.py\nEMA baseline\n6-state classify"]
+        SC["scoring.py\nCardio Load\nStress Score"]
+        RE["review_engine.py\nhighlights\nadaptive questions"]
+        IN["insights.py\nnatural-language\ninsight text"]
+        HK --> FE --> ML --> SC --> RE --> IN
     end
 
-    P -->|"Parsed CSVs<br/>in output_dir/YYYY-MM-DD/"| HOOK
-    OSC -->|"OSC over UDP<br/>localhost:7400"| OSC_IN
-    EB["EmotiBit<br/>(real-time WiFi stream)"] -->|"Via Oscilloscope<br/>OSC localhost:12345"| BF
+    subgraph BRG["🔗 Bridges"]
+        direction TB
+        OB["osc_bridge.py\nOSC UDP → :7400"]
+        WB["osc_to_ws_bridge.py\nOSC :12345\n→ WebSocket :8765"]
+    end
+
+    subgraph OUT["🎨 Outputs"]
+        direction TB
+        TD["TouchDesigner\nEmoMirror.toe\ngenerative avatar\ntwo-way mirror"]
+        BS["biosignal.js\nPPG peak detect\nRSA computation"]
+        BR["ui_mockup.html\nDaily Review\nBiofeedback Game"]
+        BS --> BR
+    end
+
+    HT -->|"/emo/mode\n= standby"| TD
+    HT -.->|"wakes\nwatcher"| WT
+    PA -->|"CSVs\nYYYY-MM-DD/"| HK
+    IN --> OB
+    OB -->|"OSC UDP :7400"| TD
+    EB -->|"Oscilloscope\nOSC live :12345"| WB
+    WB -->|"WS :8765"| BS
 ```
 
-**Key design decision:** The EmoMirror backend **hooks into** the existing `watcher.py` pipeline rather than replacing it. When `watcher.py` finishes parsing new files, it triggers the EmoMirror processing chain.
+---
+
+### Auto-Activation Layer (Future Feature)
+
+When the user gets home, the mirror wakes automatically — no manual trigger needed.
+
+| File | Role |
+|:-----|:-----|
+| **`emomirror/presence_detector.py`** | Background ARP scan on the home network every 15s. When the user's phone MAC address appears, fires an `"arrival"` event. |
+| **`emomirror/home_trigger.py`** | Listens for the arrival event. Sends `/emo/mode = "standby"` over OSC → TouchDesigner wakes to a soft ambient glow with *"Welcome home. Connect your EmotiBit."* Also ensures `watcher.py` is running so FTP discovery begins the moment the device is plugged in. |
+
+**Arrival flow:**
+`Phone connects to WiFi` → `presence_detector` detects MAC → `home_trigger` wakes mirror to **standby** → user plugs in EmotiBit → `watcher` finds it → full pipeline runs → `/emo/mode = "awakening"`
+
+---
+
+### What Changed Since the Initial Plan
+
+| Change | Detail |
+|:-------|:-------|
+| **Browser-side biofeedback** | `osc_to_ws_bridge.py` bridges Oscilloscope stream (OSC :12345) to WebSocket (:8765). `biosignal.js` runs PPG peak detection + RSA computation in the browser for the challenge UI. |
+| **Scoring engine added** | `scoring.py` computes Cardio Load and Stress Score per 5-min epoch (288/day). Motion-gated: stress only counted during sedentary periods (motion ≤ 0.3). |
+| **Review engine added** | `review_engine.py` finds highlights (contiguous runs > mean+1.5σ, ≥ 15 min), selects 3 adaptive questions from a 25+ template bank, outputs daily review JSON. |
+| **Dual output path** | TouchDesigner handles the mirror display. `ui_mockup.html` handles the browser-based Daily Review dashboard and the Biofeedback challenge game. |
+| **Noise-robust signal processing** | `biosignal.js` reduced HR window (8→3 beats) to preserve RSA oscillation. `csv_parser.js` uses 5th–95th percentile normalization to handle EDA saturation spikes (10,000 µS). |
 
 ---
 
