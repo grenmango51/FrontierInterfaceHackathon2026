@@ -59,9 +59,16 @@ flowchart LR
         ML["ml_engine.py\nEMA baseline\n6-state classify"]
         SC["scoring.py\nCardio Load\nStress Score"]
         RE["review_engine.py\nhighlights\nadaptive questions"]
-        IN["insights.py\nnatural-language\ninsight text"]
-        AM["activity_memory.py\ncosine similarity\nactivity matching"]
-        HK --> FE --> ML --> SC --> RE --> IN
+        MEM["insights.py\nGemini Memory Engine"]
+        HK --> FE --> ML --> SC --> RE --> MEM
+    end
+
+    subgraph LLM["🤖 AI & Memory: Google Gemini"]
+        direction TB
+        GEMINI["Gemini 1.5 Flash API"]
+        DB[("history.jsonl\nVector + Context Storage")]
+        GEMINI <--> DB
+        MEM <--> GEMINI
     end
 
     subgraph BRG["🔗 Bridges"]
@@ -90,13 +97,13 @@ flowchart LR
     HT -->|"/emo/mode\n= standby"| TD
     HT -.->|"wakes\nwatcher"| WT
     PA -->|"CSVs\nYYYY-MM-DD/"| HK
-    IN --> OB
+    MEM --> OB
     OB -->|"OSC UDP :7400"| TD
     EB -->|"Oscilloscope\nOSC live :12345"| WB
     WB -->|"WS :8765"| BS
     SE -->|"POST transcript\n+ physio snapshot"| FS
-    NL -->|"activity signature\n+ updated context"| AM
-    AM -.->|"enriches future\nquestions"| RE
+    NL -->|"activity signature\n+ updated context"| DB
+    DB -.->|"enriches future\nquestions"| RE
 ```
 
 ---
@@ -530,17 +537,56 @@ sequenceDiagram
 
 ✅ *All open questions have been resolved.* The hardware constraints (two-way mirror), demo scope (unified scene, simulated preference), and interaction methods (touch screen, dual-app setup) have all been confirmed.
 
+### Component 5: Context-Aware Memory System (Gemini LLM)
+
+> Pairs physiological state vectors with user annotations to build a long-term "Emotional Memory".
+
+#### [NEW] emomirror/insights.py
+- Handles communication with Gemini 1.5 Flash API.
+- Logic for **Similarity Search**: When a new state is inferred, it queries `history.jsonl` for the closest historical vector (Cosine Similarity).
+- **Prompt Engineering**: Constructs a system prompt that includes:
+    - Current State Vector (HR, EDA, Activity).
+    - Closest matching historical context (e.g., "At this HR last Monday, you were in a meeting").
+    - Instructions to generate a conversational question or a personalized "guess".
+
+#### [NEW] data/history.jsonl
+- A structured text file (or lightweight vector DB) acting as long-term memory.
+- Schema: `{ "timestamp": ISO8601, "features": [hr, eda, act], "state": "anxious", "user_context": "Stuck in traffic", "model_guess": "correct" }`
+
+#### [NEW] Sequence: Memory Feedback Loop
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as UI Report
+    participant M as insights.py (Memory)
+    participant G as Gemini API
+    participant DB as history.jsonl
+
+    UI->>U: "What were you doing at 10:30 AM?"
+    U->>UI: "I was arguing with the landlord."
+    UI->>M: Save Context [HR=95, EDA=High]
+    M->>DB: Append {features, context: "Arguing"}
+    
+    Note over M, DB: --- 2 Days Later ---
+    
+    M->>DB: Query: "Similar to HR=94, EDA=High"
+    DB-->>M: Result: "Arguing with landlord"
+    M->>G: Prompt: "Similar state found. Context: Arguing. Generate question."
+    G-->>M: "Is this situation as tense as the landlord talk?"
+    M->>UI: Personalized Question
+    UI->>U: "Is this as tense as the talk with the landlord?"
+```
+
 ---
 
-## 9. Verification Plan
+## 5. Verification Plan
 
 ### Automated Tests
-- `pytest` for feature extraction (known CSV → expected features)
-- `pytest` for state inference rules (synthetic data → expected states)
-- OSC round-trip test (Python sends → verify TouchDesigner receives)
+- `pytest emomirror/tests`: Test feature extraction and ML rule logic.
+- `mock_osc_listener.py`: Verify OSC packets sent by `osc_bridge.py`.
 
 ### Manual Verification
-1. **Pipeline test:** Drop a real EmotiBit recording into `emotibit_data/YYYY-MM-DD/` → verify features + states
-2. **OSC test:** Send mock states → verify avatar responds in TouchDesigner
-3. **Biofeedback test:** Simulate decreasing HR/EDA → verify visual metaphor progresses
-4. **End-to-end:** Full watcher → hook → features → ML → OSC → TouchDesigner flow
+1.  **Awakening Test:** Put EmotiBit in FTP mode, verify TouchDesigner "wakes up" automatically.
+2.  **State Check:** Compare TD avatar color with logs in `ml_engine.py`.
+3.  **Biofeedback Loop:** Start challenge, verify that lowering HR (measured by Oscilloscope) actually changes the TD visual.
+4.  **Memory Test:** Reply to a report question, verify it appears in `history.jsonl`.
